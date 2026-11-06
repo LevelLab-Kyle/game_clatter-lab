@@ -1,11 +1,11 @@
 ---
 name: deploy
-description: Upload the committed ClatterAll Damage build to the Level Lab web host at ~/www/lab/clatterall-damage (rsync over SSH, same flags the platform uses for client folders). Use when the user says /deploy, "deploy", "upload", "put it on the site" or "publish to labs".
+description: Upload the committed Clatter Lab build to the Level Lab studio host at ~/www/studio/clatter-lab (rsync over SSH, same flags the platform uses for client folders). Use when the user says /deploy, "deploy", "upload", "put it on the site" or "publish to labs".
 ---
 
-# /deploy — publish ClatterAll Damage to the web host
+# /deploy — publish Clatter Lab to the web host
 
-Target: `levellab:~/www/lab/clatterall-damage` — the `levellab` SSH alias and the
+Target: `levellab:~/www/studio/clatter-lab` — the `levellab` SSH alias and the
 `~/www/...` layout are the same ones `platform/utilities/sync.sh` and
 `deploy.sh` use. Change `REMOTE` below if the page should live elsewhere.
 
@@ -15,7 +15,7 @@ of the repo's runtime files. Only committed work goes up.
 ## 1. Preconditions
 
 ```sh
-cd /Users/levellab/Repos/Experiments/ClatterAll-Damage
+cd /Users/levellab/Repos/Experiments/Clatter-Lab
 git status --short
 git rev-parse --short HEAD
 git status -sb | head -1
@@ -50,8 +50,8 @@ sync: no permission bits (the web host rejects them), delete what the
 source no longer has, keep the output short.
 
 ```sh
-cd /Users/levellab/Repos/Experiments/ClatterAll-Damage
-REMOTE="levellab:~/www/lab/clatterall-damage"
+cd /Users/levellab/Repos/Experiments/Clatter-Lab
+REMOTE="levellab:~/www/studio/clatter-lab"
 VERSION=$(git rev-parse --short HEAD)
 STAGE=$(mktemp -d)
 chmod 755 "$STAGE"   # mktemp makes it 700; rsync copies that onto a new target folder, which then 403s
@@ -68,24 +68,24 @@ rsync -rlvz --delete-after --omit-dir-times --itemize-changes "${FILTER[@]}" "$S
 rm -rf "$STAGE"
 ```
 
-`rsync` creates `clatterall-damage/` on the host if it doesn't exist yet (its parent
-`~/www/lab` must exist). Exit status 23 (partial transfer) is a warning:
+`rsync` creates `clatter-lab/` on the host if it doesn't exist yet (its parent
+`~/www/studio` must exist). Exit status 23 (partial transfer) is a warning:
 report it; anything else non-zero is a failure: stop and report the output.
 
 ## 4. Verify
 
 ```sh
-ssh levellab 'ls -la ~/www/lab/clatterall-damage && ls ~/www/lab/clatterall-damage/src ~/www/lab/clatterall-damage/assets ~/www/lab/clatterall-damage/vendor'
+ssh levellab 'ls -la ~/www/studio/clatter-lab && ls ~/www/studio/clatter-lab/src ~/www/studio/clatter-lab/assets ~/www/studio/clatter-lab/vendor'
 ```
 
 Expect `index.html`, `src/` (main.js, gadgets.js, examples.js, levels.js,
 style.css), `assets/sounds.js`, `vendor/libs.js` and nothing else. Then check
-the live page (https://lab.levellab.com/clatterall-damage/) returns `200` and carries
+the live page (https://studio.levellab.com/clatter-lab/) returns `200` and carries
 this commit's cache buster:
 
 ```sh
-curl -s -o /dev/null -w '%{http_code}\n' https://lab.levellab.com/clatterall-damage/
-curl -s https://lab.levellab.com/clatterall-damage/ | grep -c "?v=$(git rev-parse --short HEAD)"   # expect 7
+curl -s -o /dev/null -w '%{http_code}\n' https://studio.levellab.com/clatter-lab/
+curl -s https://studio.levellab.com/clatter-lab/ | grep -c "?v=$(git rev-parse --short HEAD)"   # expect 7
 ```
 
 ## 5. Report

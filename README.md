@@ -1,4 +1,4 @@
-# ClatterAll Damage
+# Clatter Lab
 
 Prototype of a kids' Rube Goldberg game. Drag gadgets onto a voxel board, press Play, watch it go.
 
