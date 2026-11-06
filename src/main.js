@@ -1547,7 +1547,7 @@ function showMode() {
   fitBrand();
 }
 
-// Show "Level Lab" in the middle of the top bar only when there's a clear gap
+// Show "Clatter Lab" in the middle of the top bar only when there's a clear gap
 // on both sides. The left-hand controls can shrink (the level name cuts off
 // with "…"), so measure them at their full width.
 function fitBrand() {
