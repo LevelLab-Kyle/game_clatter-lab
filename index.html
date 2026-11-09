@@ -3,7 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      // Match the device's light or dark setting, and follow it if it changes.
+      (function () {
+        var light = window.matchMedia && matchMedia('(prefers-color-scheme: light)');
+        function apply() { document.documentElement.setAttribute('data-theme', light && light.matches ? 'light' : 'dark'); }
+        apply();
+        if (light && light.addEventListener) light.addEventListener('change', apply);
+      })();
+    </script>
     <title>Clatter Lab</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

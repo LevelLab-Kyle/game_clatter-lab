@@ -15,6 +15,8 @@ Level 1 is always a guided tour: its solution shows as a see-through ramp, and a
 
 Open `index.html` in a browser. No build step, no server, no internet needed.
 
+The page matches the device's light or dark setting, and switches live if it changes.
+
 ## Controls
 
 | Action | How |

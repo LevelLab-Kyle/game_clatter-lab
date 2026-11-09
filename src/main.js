@@ -14,7 +14,7 @@ renderer.shadowMap.type = TOUCH ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xdff1ff);
+scene.background = new THREE.Color(0xcfe6fb); // sky blue, deep enough to stand apart from light or dark UI
 
 // One side-on perspective camera, looking straight down -Z at the X/Y plane.
 // It backs off so the board plane (z = 0) shows PX_PER_UNIT pixels per cell
@@ -88,7 +88,7 @@ const backdrop = new THREE.Mesh(
   new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false, // pieces behind the grid's plane still show through it
-    uniforms: { uLine: { value: new THREE.Color(0xb9d4e8) }, uGrid: { value: GRID_STRENGTH } },
+    uniforms: { uLine: { value: new THREE.Color(0xa9c9e4) }, uGrid: { value: GRID_STRENGTH } },
     vertexShader: `
       varying vec2 vWorld;
       void main() {
