@@ -7,7 +7,7 @@ Two modes, switched in the top bar:
 - **Levels**: puzzles that get harder as you go. Each level comes with locked pieces already on the board and a few parts in the tray (the number on each card is how many are left). Get anything to the ⭐ to win and unlock the next level. Each new gadget arrives in its own level, marked NEW in the tray. ☰ opens the level picker.
 - **Sandbox**: every gadget, no limits, plus the Examples menu.
 
-A hint card floats over the top of the board: the level's goal in Levels, or what the Sandbox is for. The first visit to each mode also lists the three steps (drag gadgets in, press ▶, hit the ⭐). The ✕ in its corner or Play closes it; the **?** button by Home brings it back.
+A hint card floats over the top of the board: the level's goal in Levels, or what the Sandbox is for. The ✕ in its corner or Play closes it; the **?** button by Home brings it back.
 
 Level 1 is always a guided tour: its solution shows as a see-through ramp, and a blue bubble points at each next step — the ramp in the tray, the see-through spot, then ▶ (or Stop, after a miss). Any level can do this with `tour: true` in `src/levels.js`.
 

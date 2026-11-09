@@ -368,7 +368,9 @@ function loadProgress() {
   for (const s of data.items.map(upgradeEntry)) {
     if (GADGETS[s.type] && canPlace(s.type, s.x, s.y, s.rot || 0, null, s.size || null)) addItem(s.type, s.x, s.y, s.rot || 0, !!s.flip, s.size || null);
   }
-  if (data.view) { view.cx = data.view.cx; view.cy = data.view.cy; view.zoom = data.view.zoom; }
+  // Skip a broken saved view (NaN is saved as null): Home fits the board instead.
+  const v = data.view;
+  if (v && Number.isFinite(v.cx) && Number.isFinite(v.cy) && v.zoom > 0) { view.cx = v.cx; view.cy = v.cy; view.zoom = v.zoom; }
   if (data.example && EXAMPLES[data.example]) examplesSelect.value = data.example;
   return true;
 }
@@ -1387,6 +1389,8 @@ function snapView() {
 
 function updateViewSnap(dt) {
   if (!viewSnap) return;
+  // A broken view can't ease anywhere (NaN stays NaN): jump straight to the target.
+  if (!(Number.isFinite(view.cx) && Number.isFinite(view.cy) && view.zoom > 0)) Object.assign(view, viewSnap);
   const k = 1 - Math.exp(-dt * 14);
   view.cx += (viewSnap.cx - view.cx) * k;
   view.cy += (viewSnap.cy - view.cy) * k;
@@ -1547,9 +1551,7 @@ function showMode() {
   buildTray();
   fitBrand();
   showTourGhosts();
-  // The tour level skips the goal card once the welcome is done: the tour bubble takes over.
-  if (touring() && introSeen[mode]) hint.hidden = true;
-  else showHint();
+  showHint();
 }
 
 // Show "Clatter Lab" in the middle of the top bar only when there's a clear gap
@@ -1576,12 +1578,8 @@ document.getElementById('mode-levels').onclick = () => { if (mode !== 'levels') 
 document.getElementById('mode-sandbox').onclick = enterSandbox;
 
 // The hint card floats over the top of the board: the level's goal, or what
-// the Sandbox is for. The first visit to each mode also gets the three steps
-// (drag, play, hit the star). Play, ✕ or Let's go! closes it; ? brings it back.
-const INTRO_KEY = 'clatter-lab.intro.v1';
+// the Sandbox is for. Play or ✕ closes it; ? brings it back.
 const hint = document.getElementById('hint');
-let introSeen = {}; // mode -> true once its welcome has been closed
-try { introSeen = JSON.parse(localStorage.getItem(INTRO_KEY)) || {}; } catch {}
 
 // Fills `el` with `text`, drawing {rotate}, {size} and {flip} as the icon
 // of that button in the gadget menu, so the hint shows what to look for.
@@ -1600,27 +1598,14 @@ function setTextWithIcons(el, text) {
 
 function showHint() {
   const level = currentLevel();
-  const first = !introSeen[mode];
-  document.getElementById('hint-title').textContent = first
-    ? (level ? 'Welcome to Clatter Lab!' : 'Welcome to the Sandbox!')
-    : (level ? `Level ${levelIndex + 1}: ${level.name}` : 'Sandbox');
-  document.getElementById('hint-steps').hidden = !first;
+  document.getElementById('hint-title').textContent = level ? `Level ${levelIndex + 1}: ${level.name}` : 'Sandbox';
   setTextWithIcons(document.getElementById('hint-text'), level
-    ? (first ? `Level ${levelIndex + 1}: ` : '') + level.goal
+    ? level.goal
     : 'Use any part you like. Build anything! Need ideas? Try Examples at the top.');
-  document.getElementById('hint-buttons').hidden = !first; // the welcome ends with Let's go!
   hint.hidden = false;
 }
 
-function hideHint() {
-  if (hint.hidden) return;
-  hint.hidden = true;
-  if (!introSeen[mode]) {
-    introSeen[mode] = true;
-    try { localStorage.setItem(INTRO_KEY, JSON.stringify(introSeen)); } catch {}
-  }
-}
-document.getElementById('hint-ok').onclick = hideHint;
+function hideHint() { hint.hidden = true; }
 document.getElementById('hint-close').onclick = hideHint;
 document.getElementById('btn-hint').onclick = () => { if (hint.hidden) showHint(); else hideHint(); };
 
@@ -1673,7 +1658,9 @@ function updateCoach(dt) {
   // whether the bubble sits above ('down') or below ('up') that point.
   let text = null, at = null, dir = 'down';
   const name = ghost && GADGETS[ghost.type].name.toLowerCase();
-  if (!on || !hint.hidden || !winCard.hidden || won) {
+  // The goal card and the bubble show together; picking up a part closes the card.
+  if (on && drag && drag.kind !== 'pan') hideHint();
+  if (!on || !winCard.hidden || won) {
     // nothing to say
   } else if (playing) {
     if (runTime > 3) { text = 'Missed! Press ■, then try again.'; at = 'play'; }
@@ -1704,6 +1691,7 @@ function updateCoach(dt) {
     point = [r.left + r.width / 2 - stage.left, r.bottom - stage.top + 4];
     dir = 'up';
   }
+  if (at === 'play' && !hint.hidden) point = null; // the card can cover that corner on phones
   if (!text || !point) { coach.hidden = true; return; }
 
   if (coach.textContent !== text) coach.textContent = text;
@@ -1767,7 +1755,7 @@ function levelWon() {
   const next = !last && newGadgetOf(levelIndex + 1);
   document.getElementById('win-text').textContent = last
     ? 'Now build anything you like in the Sandbox!'
-    : next ? `Next up: The ${titleCase(GADGETS[next].name)}.` : `Next up: ${LEVELS[levelIndex + 1].name}.`;
+    : next ? `Next up: The ${titleCase(GADGETS[next].name)}` : `Next up: ${LEVELS[levelIndex + 1].name}`;
   document.getElementById('win-next').textContent = last ? 'Sandbox ▶' : 'Next level ▶';
   // Let the star spin a moment first.
   clearTimeout(winTimer);
