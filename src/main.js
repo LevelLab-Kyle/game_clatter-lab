@@ -14,7 +14,7 @@ renderer.shadowMap.type = TOUCH ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xcfe6fb); // sky blue, deep enough to stand apart from light or dark UI
+scene.background = new THREE.Color(0xcfe6fb); // sky blue, deep enough to stand apart from light or dark UI (also #stage in style.css)
 
 // One side-on perspective camera, looking straight down -Z at the X/Y plane.
 // It backs off so the board plane (z = 0) shows PX_PER_UNIT pixels per cell
@@ -1871,4 +1871,5 @@ document.getElementById('win-next').onclick = () => {
   window.addEventListener('beforeunload', () => { if (saveTimer) saveProgress(); });
   pageReady = true;
   frame();
+  document.body.classList.remove('loading'); // the board has drawn: show the controls, drop the spinner
 })();

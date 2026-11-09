@@ -20,7 +20,7 @@
     <!-- The ?v= on each local file is a cache buster: /deploy swaps the placeholder for the commit hash. -->
     <link rel="stylesheet" href="src/style.css?v=__VERSION__" />
   </head>
-  <body>
+  <body class="loading">
     <div id="app">
       <header id="topbar">
         <div class="level-info">
@@ -40,6 +40,7 @@
 
       <div id="stage">
         <canvas id="scene"></canvas>
+        <div id="loader" role="status"><div class="spinner"></div>Loading…</div>
         <div id="view-tools">
           <button id="btn-home" class="button-icon" title="Fit Everything on Screen (H)" aria-label="Home"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5L8 2.5l6 5"/><path d="M3.5 6.5V13.5h9V6.5"/><path d="M6.5 13.5v-4h3v4"/></svg></button>
           <button id="btn-lock" class="button-icon on" title="Up/down scrolling is locked (click to unlock)" aria-label="Lock Up and Down Scrolling" aria-pressed="true"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1"/><path class="shackle" d="M5 7V5a3 3 0 0 1 6 0v2"/></svg></button>
