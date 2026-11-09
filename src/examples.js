@@ -55,19 +55,18 @@ const EXAMPLES = {
       ['block', 1, 0], ['block', 1, 1], ['block', 1, 2], ['block', 1, 3],
       ['block', 2, 0], ['block', 2, 1], ['block', 2, 2], ['block', 2, 3],
       ['ramp', 1, 4, 0, false, { w: 2, h: 1 }], ['marble', 1, 4.75],
-      ['bouncer', 4.5, 0], ['bouncer', 9.5, 0], ['bouncer', 14, 0],
+      ['bouncer', 4.5, 0], ['bouncer', 9.5, 0],
       ['star', 11, 3],
     ],
   },
 
   'Launch & Catch': {
-    blurb: 'A launcher shoots the marble off a ledge onto a conveyor, which drops it into a bucket with the star.',
+    blurb: 'A launcher shoots the marble off a tower onto a conveyor, which carries it back into the star above a bucket.',
     items: [
-      ['block', 1, 0], ['block', 1, 1], ['block', 2, 0], ['block', 2, 1],
-      ['launcher', 1, 2, 3], ['marble', 2, 1.75],
-      ['block', 4, 0], ['block', 5, 0], ['conveyor', 4, 1],
-      ['bucket', 6, 0], ['star', 6.25, 1],
-      ['block', 7.5, 0], ['block', 7.5, 1],
+      ['block', 1, 0], ['block', 1, 1], ['block', 1, 2], ['block', 2, 0], ['block', 2, 1], ['block', 2, 2],
+      ['launcher', 1, 3, 3], ['marble', 1.25, 2.75],
+      ['bucket', 3.5, 0], ['star', 3.5, 0.75],
+      ['block', 5, 0], ['block', 6, 0], ['conveyor', 5, 1, 0, true],
     ],
   },
 
