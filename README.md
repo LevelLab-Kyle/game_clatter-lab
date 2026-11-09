@@ -36,7 +36,7 @@ Open `index.html` in a browser. No build step, no server, no internet needed.
 | Clear | The 🗑 button next to Home. Asks "Are you sure?" first; undo brings it all back |
 | Undo / Redo | Buttons next to Play, or `Cmd/Ctrl+Z` / `Shift+Cmd/Ctrl+Z` (also `Ctrl+Y`). Covers placing, moving, rotating, deleting and Clear |
 
-Hit the ⭐ Star with anything to win. In a level, the level's own pieces can't be moved, and **Clear** only takes back the parts you placed.
+Hit the ⭐ Star with anything to win. In a level, the level's own pieces can't be moved (the cursor shows a no-entry sign over them; tapping one shakes it and shows a 🔒 "Can't Move" tag), and **Clear** only takes back the parts you placed.
 
 Everything is saved in the browser (localStorage) as you work and comes back when you reopen the page: the Sandbox board, view and example, and for Levels the open level, the levels you've beaten and the parts you'd placed in each one.
 

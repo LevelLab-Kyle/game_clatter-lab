@@ -15,7 +15,7 @@
     <div id="app">
       <header id="topbar">
         <div class="level-info">
-          <button id="btn-levels" class="button" title="Pick a level">☰</button>
+          <button id="btn-levels" class="button" title="Pick a Level">☰</button>
           <span id="level-title" class="level-title"></span>
         </div>
         <div class="examples">
@@ -32,10 +32,10 @@
       <div id="stage">
         <canvas id="scene"></canvas>
         <div id="view-tools">
-          <button id="btn-home" class="button-icon" title="Fit everything on screen (H)" aria-label="Home"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5L8 2.5l6 5"/><path d="M3.5 6.5V13.5h9V6.5"/><path d="M6.5 13.5v-4h3v4"/></svg></button>
-          <button id="btn-lock" class="button-icon on" title="Up/down scrolling is locked (click to unlock)" aria-label="Lock up and down scrolling" aria-pressed="true"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1"/><path class="shackle" d="M5 7V5a3 3 0 0 1 6 0v2"/></svg></button>
-          <button id="btn-clear" class="button-icon" title="Clear the board" aria-label="Clear"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h11"/><path d="M6 4V2.5h4V4"/><path d="M4 4l.75 9.5h6.5L12 4"/><path d="M6.75 6.5v4.5M9.25 6.5v4.5"/></svg></button>
-          <button id="btn-hint" class="button-icon" title="What do I do? (show the hint)" aria-label="Show the hint">?</button>
+          <button id="btn-home" class="button-icon" title="Fit Everything on Screen (H)" aria-label="Home"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5L8 2.5l6 5"/><path d="M3.5 6.5V13.5h9V6.5"/><path d="M6.5 13.5v-4h3v4"/></svg></button>
+          <button id="btn-lock" class="button-icon on" title="Up/down scrolling is locked (click to unlock)" aria-label="Lock Up and Down Scrolling" aria-pressed="true"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1"/><path class="shackle" d="M5 7V5a3 3 0 0 1 6 0v2"/></svg></button>
+          <button id="btn-clear" class="button-icon" title="Clear the Board" aria-label="Clear"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h11"/><path d="M6 4V2.5h4V4"/><path d="M4 4l.75 9.5h6.5L12 4"/><path d="M6.75 6.5v4.5M9.25 6.5v4.5"/></svg></button>
+          <button id="btn-hint" class="button-icon" title="What do I do? (show the hint)" aria-label="Show the Hint">?</button>
           <div id="clear-confirm" class="card" hidden>
             <div class="title">Are you sure?</div>
             <div id="clear-text" class="muted"></div>
@@ -59,6 +59,7 @@
         <div id="play-badge">▶ Playing, press <svg class="badge-stop" viewBox="0 0 16 16" fill="currentColor" aria-label="Stop"><rect x="3.5" y="3.5" width="9" height="9" rx="1"/></svg> to edit</div>
         <div id="toast" hidden></div>
         <div id="coach" hidden></div>
+        <div id="locked-tag" hidden><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg> Can’t Move</div>
         <div id="hint" class="card" role="dialog" aria-labelledby="hint-title" hidden>
           <div class="hint-head">
             <div id="hint-title" class="title"></div>
@@ -71,8 +72,8 @@
           <div id="win-title" class="title"></div>
           <div id="win-text" class="muted"></div>
           <div class="win-buttons">
-            <button id="win-again" class="button">↺ Try again</button>
-            <button id="win-next" class="button button-accent">Next level ▶</button>
+            <button id="win-again" class="button">↺ Try Again</button>
+            <button id="win-next" class="button button-accent">Next Level ▶</button>
           </div>
         </div>
         <div id="level-picker" hidden>
@@ -88,9 +89,9 @@
 
       <footer id="tray">
         <div class="tray-row">
-          <button id="tray-prev" class="button-icon" title="Previous gadgets">‹</button>
+          <button id="tray-prev" class="button-icon" title="Previous Gadgets">‹</button>
           <div id="gadget-list"><div id="gadget-track"></div></div>
-          <button id="tray-next" class="button-icon" title="More gadgets">›</button>
+          <button id="tray-next" class="button-icon" title="More Gadgets">›</button>
         </div>
       </footer>
     </div>

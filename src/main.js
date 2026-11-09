@@ -671,6 +671,7 @@ function endDrag(ev) {
   drag = null;
   canvas.classList.remove('dragging');
   if (d.kind === 'pan') snapView();
+  if (d.kind === 'pan' && d.lockedItem && Math.hypot(ev.clientX - d.startX, ev.clientY - d.startY) < 5) showLocked(d.lockedItem);
   if (d.kind === 'new') {
     scene.remove(d.ghost);
     const spot = d.cell && nearestFree(d.type, d.cell.ax, d.cell.ay, d.rot);
@@ -699,6 +700,9 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (trackTouchDown(ev) || pinch) return;
   if (ev.button === 2) return;
   const item = !playing && ev.button === 0 ? pickItem(ev) : null;
+  // A level's own pieces can't be picked up: a tap on one says so.
+  const lockedItem = !item && !playing && ev.button === 0 ? pickAnyItem(ev) : null;
+  if (lockedItem && ev.pointerType === 'touch') showLocked(lockedItem);
   try { canvas.setPointerCapture(ev.pointerId); } catch {}
   canvas.classList.add('dragging');
   if (item) {
@@ -711,7 +715,7 @@ canvas.addEventListener('pointerdown', (ev) => {
     // On touch screens one finger never pans: that takes two (see pinch).
     if (ev.pointerType === 'touch') { canvas.classList.remove('dragging'); return; }
     viewSnap = null;
-    drag = { kind: 'pan', startX: ev.clientX, startY: ev.clientY, cx0: view.cx, cy0: view.cy };
+    drag = { kind: 'pan', startX: ev.clientX, startY: ev.clientY, cx0: view.cx, cy0: view.cy, lockedItem };
   }
 });
 
@@ -720,8 +724,9 @@ window.addEventListener('pointermove', updateDrag);
 // Pointer cursor over anything selectable (only while editing and not dragging).
 canvas.addEventListener('pointermove', (ev) => {
   if (ev.pointerType === 'touch') return;
-  const over = !drag && !playing && pickItem(ev) !== null;
-  canvas.classList.toggle('hover', over);
+  const hit = !drag && !playing ? pickAnyItem(ev) : null;
+  canvas.classList.toggle('hover', !!hit && !hit.locked);
+  canvas.classList.toggle('locked', !!hit && hit.locked);
 });
 canvas.addEventListener('pointerleave', () => canvas.classList.remove('hover'));
 window.addEventListener('pointerup', endDrag);
@@ -1453,6 +1458,7 @@ function frame() {
     for (const item of items.values()) if (GADGETS[item.type].idleFrame) GADGETS[item.type].onFrame(item, dt);
   }
   updateItemTools();
+  updateLocked(dt);
   updateCoach(dt);
 
   // The outline needs the composer's extra passes; with nothing selected
@@ -1644,6 +1650,45 @@ function flyHint(closing) {
 hint.onclick = hideHint; // a tap anywhere on the card closes it, ✕ included
 btnHint.onclick = () => { if (hintOpen) hideHint(); else showHint(); };
 
+// Tapping a locked piece (a level's own) gives it a quick "no" shake and
+// shows a "Can't move" tag above it for a moment.
+const lockedTag = document.getElementById('locked-tag');
+let shaking = null; // { item, t }
+let lockedTagTimer = null;
+
+function showLocked(item) {
+  if (shaking && shaking.item !== item) applyTransform(shaking.item);
+  shaking = { item, t: 0 };
+  lockedTag.hidden = false;
+  lockedTag.dataset.id = item.id;
+  clearTimeout(lockedTagTimer);
+  lockedTagTimer = setTimeout(() => { lockedTag.hidden = true; }, 1200);
+}
+
+const _lockedBox = new THREE.Box3();
+const _lockedTop = new THREE.Vector3();
+function updateLocked(dt) {
+  if (shaking) {
+    const item = shaking.item;
+    shaking.t += dt;
+    applyTransform(item);
+    if (shaking.t < 0.35 && !playing && items.has(item.id)) {
+      item.mesh.position.x += Math.sin(shaking.t * 45) * 0.06 * (1 - shaking.t / 0.35);
+    } else {
+      shaking = null;
+    }
+  }
+  const item = !lockedTag.hidden && items.get(+lockedTag.dataset.id);
+  if (!item || playing) { lockedTag.hidden = true; return; }
+  _lockedBox.setFromObject(item.mesh);
+  _lockedTop.set((_lockedBox.min.x + _lockedBox.max.x) / 2, _lockedBox.max.y, _lockedBox.max.z).project(camera);
+  const half = lockedTag.offsetWidth / 2 + 8; // keep it inside the board
+  const x = Math.round(THREE.MathUtils.clamp((_lockedTop.x + 1) / 2 * canvas.clientWidth, half, canvas.clientWidth - half));
+  const y = Math.round((1 - _lockedTop.y) / 2 * canvas.clientHeight - 8);
+  lockedTag.style.left = `${x}px`;
+  lockedTag.style.top = `${y}px`;
+}
+
 // Guided tour: a level with `tour: true` (level 1) walks the player
 // through it every time. Its solution shows as see-through pieces,
 // and a bubble points at the next thing to do: the part in the tray, the
@@ -1760,7 +1805,7 @@ function openPicker() {
     tile.classList.toggle('current', n === levelIndex);
     tile.disabled = !levelOpen(n);
     const gadget = newGadgetOf(n);
-    tile.title = level.name + (gadget ? ` (new: ${GADGETS[gadget].name})` : '');
+    tile.title = level.name + (gadget ? ` (New: ${GADGETS[gadget].name})` : '');
     tile.innerHTML = `<div class="num">${n + 1}</div>`
       + (gadget ? `<img class="icon" alt="" src="${thumbOf(gadget)}">` : '<div class="icon"></div>')
       + `<div class="name">${level.name}</div>`
@@ -1791,7 +1836,7 @@ function levelWon() {
   document.getElementById('win-text').textContent = last
     ? 'Now build anything you like in the Sandbox!'
     : next ? `Next up: The ${titleCase(GADGETS[next].name)}` : `Next up: ${LEVELS[levelIndex + 1].name}`;
-  document.getElementById('win-next').textContent = last ? 'Sandbox ▶' : 'Next level ▶';
+  document.getElementById('win-next').textContent = last ? 'Sandbox ▶' : 'Next Level ▶';
   // Let the star spin a moment first.
   clearTimeout(winTimer);
   winTimer = setTimeout(() => { toast.hidden = true; winCard.hidden = false; }, 900);

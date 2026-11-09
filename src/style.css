@@ -348,6 +348,7 @@ body.playing #play-badge { opacity: 1; }
 }
 #scene.dragging { cursor: grabbing; }
 #scene.hover { cursor: pointer; }
+#scene.locked { cursor: not-allowed; } /* a level's own pieces stay put */
 
 /* Floating rotate/delete tools above the selected gadget */
 #item-tools {
@@ -451,6 +452,25 @@ body.playing #play-badge { opacity: 1; }
 @keyframes coach-bob { to { transform: translateY(-5px); } }
 #coach.up { animation-name: coach-bob-up; }
 @keyframes coach-bob-up { to { transform: translateY(5px); } }
+
+/* "Can't move" tag over a locked piece that was tapped */
+#locked-tag {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-width) var(--border-style) var(--color-border-light);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-drop);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  pointer-events: none;
+}
+#locked-tag[hidden] { display: none; }
 
 /* Level complete */
 .card {
