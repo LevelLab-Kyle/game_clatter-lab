@@ -393,7 +393,7 @@ body.playing #play-badge { opacity: 1; }
   flex-direction: column;
   gap: var(--space-2);
   border-color: var(--color-accent);
-  animation: pop-in 0.3s ease-out;
+  transform-origin: center center;
 }
 #hint[hidden] { display: none; }
 #hint-text { font-size: var(--font-size-lg); line-height: 1.4; }

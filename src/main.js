@@ -1580,6 +1580,10 @@ document.getElementById('mode-sandbox').onclick = enterSandbox;
 // The hint card floats over the top of the board: the level's goal, or what
 // the Sandbox is for. Play or ✕ closes it; ? brings it back.
 const hint = document.getElementById('hint');
+const btnHint = document.getElementById('btn-hint');
+let hintOpen = false;
+let hintAnim = null;
+let pageReady = false; // the card just appears on page load; it only flies after that
 
 // Fills `el` with `text`, drawing {rotate}, {size} and {flip} as the icon
 // of that button in the gadget menu, so the hint shows what to look for.
@@ -1602,12 +1606,36 @@ function showHint() {
   setTextWithIcons(document.getElementById('hint-text'), level
     ? level.goal
     : 'Use any part you like. Build anything! Need ideas? Try Examples at the top.');
-  hint.hidden = false;
+  if (!hintOpen) {
+    hintOpen = true;
+    hint.hidden = false;
+    flyHint(false);
+  }
 }
 
-function hideHint() { hint.hidden = true; }
+function hideHint() {
+  if (!hintOpen) return;
+  hintOpen = false;
+  flyHint(true);
+}
+
+// The card grows out of the ? button and shrinks back into it.
+function flyHint(closing) {
+  hintAnim?.cancel();
+  hintAnim = null;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (still || !pageReady || !hint.animate) { hint.hidden = closing; return; }
+  const b = btnHint.getBoundingClientRect(), c = hint.getBoundingClientRect();
+  const dx = b.left + b.width / 2 - (c.left + c.width / 2);
+  const dy = b.top + b.height / 2 - (c.top + c.height / 2);
+  const small = { transform: `translateX(-50%) translate(${dx}px, ${dy}px) scale(0.08)`, opacity: 0 };
+  const full = { transform: 'translateX(-50%)', opacity: 1 };
+  hintAnim = hint.animate(closing ? [full, small] : [small, full],
+    { duration: 250, easing: closing ? 'ease-in' : 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+  if (closing) hintAnim.onfinish = () => { hint.hidden = true; hintAnim = null; };
+}
 document.getElementById('hint-close').onclick = hideHint;
-document.getElementById('btn-hint').onclick = () => { if (hint.hidden) showHint(); else hideHint(); };
+btnHint.onclick = () => { if (hintOpen) hideHint(); else showHint(); };
 
 // Guided tour: a level with `tour: true` (level 1) walks the player
 // through it every time. Its solution shows as see-through pieces,
@@ -1691,7 +1719,7 @@ function updateCoach(dt) {
     point = [r.left + r.width / 2 - stage.left, r.bottom - stage.top + 4];
     dir = 'up';
   }
-  if (at === 'play' && !hint.hidden) point = null; // the card can cover that corner on phones
+  if (at === 'play' && hintOpen) point = null; // the card can cover that corner on phones
   if (!text || !point) { coach.hidden = true; return; }
 
   if (coach.textContent !== text) coach.textContent = text;
@@ -1789,5 +1817,6 @@ document.getElementById('win-next').onclick = () => {
   homeView();
   if (viewSnap) { Object.assign(view, viewSnap); viewSnap = null; }
   window.addEventListener('beforeunload', () => { if (saveTimer) saveProgress(); });
+  pageReady = true;
   frame();
 })();
