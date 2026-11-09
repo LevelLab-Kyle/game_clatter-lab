@@ -381,6 +381,7 @@ let world = null;
 let won = false;
 
 function startPlay() {
+  hideHint();
   select(null);
   finishTweens();
   won = false;
@@ -1441,6 +1442,7 @@ function frame() {
     for (const item of items.values()) if (GADGETS[item.type].idleFrame) GADGETS[item.type].onFrame(item, dt);
   }
   updateItemTools();
+  updateCoach(dt);
 
   // The outline needs the composer's extra passes; with nothing selected
   // (always so while playing) draw straight to the screen, which is much
@@ -1542,9 +1544,12 @@ function showMode() {
   document.getElementById('mode-levels').classList.toggle('on', !!level);
   document.getElementById('mode-sandbox').classList.toggle('on', !level);
   document.getElementById('level-title').textContent = level ? `${levelIndex + 1}. ${level.name}` : '';
-  document.getElementById('tray-label').textContent = level ? level.goal : 'Drag a gadget onto the board';
   buildTray();
   fitBrand();
+  showTourGhosts();
+  // The tour level skips the goal card once the welcome is done: the tour bubble takes over.
+  if (touring() && introSeen[mode]) hint.hidden = true;
+  else showHint();
 }
 
 // Show "Clatter Lab" in the middle of the top bar only when there's a clear gap
@@ -1569,6 +1574,138 @@ document.fonts?.ready.then(fitBrand); // text widths change once Roboto loads
 
 document.getElementById('mode-levels').onclick = () => { if (mode !== 'levels') loadLevel(levelIndex); };
 document.getElementById('mode-sandbox').onclick = enterSandbox;
+
+// The hint card floats over the top of the board: the level's goal, or what
+// the Sandbox is for. The first visit to each mode also gets the three steps
+// (drag, play, hit the star). Play or "Got it" closes it; ? brings it back.
+const INTRO_KEY = 'clatter-lab.intro.v1';
+const hint = document.getElementById('hint');
+let introSeen = {}; // mode -> true once its welcome has been closed
+try { introSeen = JSON.parse(localStorage.getItem(INTRO_KEY)) || {}; } catch {}
+
+function showHint() {
+  const level = currentLevel();
+  const first = !introSeen[mode];
+  document.getElementById('hint-title').textContent = first
+    ? (level ? 'Welcome to Clatter Lab!' : 'Welcome to the Sandbox!')
+    : (level ? `Level ${levelIndex + 1}: ${level.name}` : 'Sandbox');
+  document.getElementById('hint-steps').hidden = !first;
+  document.getElementById('hint-text').textContent = level
+    ? (first ? 'Level 1: ' : '') + level.goal
+    : 'Every gadget, no limits. Build any machine you like, or pick one from Examples up top.';
+  document.getElementById('hint-ok').textContent = first ? 'Let’s go!' : 'Got it';
+  hint.hidden = false;
+}
+
+function hideHint() {
+  if (hint.hidden) return;
+  hint.hidden = true;
+  if (!introSeen[mode]) {
+    introSeen[mode] = true;
+    try { localStorage.setItem(INTRO_KEY, JSON.stringify(introSeen)); } catch {}
+  }
+}
+document.getElementById('hint-ok').onclick = hideHint;
+document.getElementById('btn-hint').onclick = () => { if (hint.hidden) showHint(); else hideHint(); };
+
+// Guided tour: a level with `tour: true` (level 1) walks the player
+// through it every time. Its solution shows as see-through pieces,
+// and a bubble points at the next thing to do: the part in the tray, the
+// see-through spot, then Play (or Stop, after a miss).
+const coach = document.getElementById('coach');
+const tourMat = new THREE.MeshStandardMaterial({ color: 0x0077ff, transparent: true, opacity: 0.35, depthWrite: false });
+let tourGhosts = []; // { type, x, y, rot, flip, size, mesh }
+let tourClock = 0;
+let runTime = 0; // seconds since Play
+
+const touring = () => !!currentLevel()?.tour;
+
+function showTourGhosts() {
+  for (const g of tourGhosts) scene.remove(g.mesh);
+  tourGhosts = [];
+  if (!touring()) return;
+  for (const [type, x, y, rot, flip, size] of currentLevel().solution) {
+    const g = { type, x, y, rot: rot || 0, flip: !!flip, size: size || null };
+    g.mesh = GADGETS[type].makeMesh(g);
+    eachMesh(g.mesh, (m) => { m.material = tourMat; m.castShadow = false; m.receiveShadow = false; });
+    placeMesh(g);
+    scene.add(g.mesh);
+    tourGhosts.push(g);
+  }
+}
+
+// The next see-through piece the player hasn't covered yet.
+function nextGhost() {
+  const mine = playerItems();
+  return tourGhosts.find((g) => !mine.some((i) => i.type === g.type && i.x === g.x && i.y === g.y
+    && (i.rot || 0) === g.rot && !!i.flip === g.flip && sameSize(i.size, g.size)));
+}
+
+const _ghostBox = new THREE.Box3();
+const _ghostTop = new THREE.Vector3();
+
+function updateCoach(dt) {
+  runTime = playing ? runTime + dt : 0;
+  const on = touring();
+  tourClock += dt;
+  tourMat.opacity = 0.3 + 0.15 * Math.sin(tourClock * 4);
+  const ghost = on && nextGhost();
+  // Only the next uncovered piece shows, so it doesn't tint a placed one.
+  for (const g of tourGhosts) g.mesh.visible = g === ghost && !playing;
+
+  // Pick the step and what it points at: [x, y] in stage pixels, and
+  // whether the bubble sits above ('down') or below ('up') that point.
+  let text = null, at = null, dir = 'down';
+  const name = ghost && GADGETS[ghost.type].name.toLowerCase();
+  if (!on || !hint.hidden || !winCard.hidden || won) {
+    // nothing to say
+  } else if (playing) {
+    if (runTime > 3) { text = 'Missed! Press ■ to stop, then try again.'; at = 'play'; }
+  } else if (drag?.kind === 'new' || drag?.kind === 'move') {
+    if (ghost) { text = `Let go over the see-through ${name}.`; at = 'ghost'; }
+  } else if (!ghost) {
+    text = 'Now press ▶ to let the marble drop!'; at = 'play';
+  } else if (partsLeft(partType(ghost.type)) > 0) {
+    text = `Drag the ${name} from the tray onto the board.`; at = 'tray';
+  } else {
+    text = `Drag your ${name} onto the see-through one, right under the marble.`; at = 'ghost';
+  }
+
+  let point = null;
+  const stage = canvas.getBoundingClientRect();
+  if (at === 'tray') {
+    const card = trayTrack.querySelector(`[data-type="${partType(ghost.type)}"]`);
+    if (card) {
+      const r = card.getBoundingClientRect();
+      point = [r.left + r.width / 2 - stage.left, stage.height - 4];
+    }
+  } else if (at === 'ghost') {
+    _ghostBox.setFromObject(ghost.mesh);
+    _ghostTop.set((_ghostBox.min.x + _ghostBox.max.x) / 2, _ghostBox.max.y, _ghostBox.max.z).project(camera);
+    point = [(_ghostTop.x + 1) / 2 * stage.width, (1 - _ghostTop.y) / 2 * stage.height - 6];
+  } else if (at === 'play') {
+    const r = btnPlay.getBoundingClientRect();
+    point = [r.left + r.width / 2 - stage.left, r.bottom - stage.top + 4];
+    dir = 'up';
+  }
+  if (!text || !point) { coach.hidden = true; return; }
+
+  if (coach.textContent !== text) coach.textContent = text;
+  coach.hidden = false;
+  coach.classList.toggle('up', dir === 'up');
+  // Whole pixels, and only written when they change: fractional or
+  // constantly rewritten positions make the text shimmer.
+  const w = coach.offsetWidth, h = coach.offsetHeight;
+  const left = Math.round(THREE.MathUtils.clamp(point[0] - w / 2, 8, stage.width - w - 8));
+  const top = Math.round(dir === 'up' ? point[1] + 10 : point[1] - h - 10);
+  const arrow = Math.round(THREE.MathUtils.clamp(point[0] - left, 12, w - 12));
+  if (coach.dataset.pos !== `${left},${top},${arrow}`) {
+    coach.dataset.pos = `${left},${top},${arrow}`;
+    coach.style.left = `${left}px`;
+    coach.style.top = `${top}px`;
+    coach.style.setProperty('--arrow-x', `${arrow}px`);
+  }
+}
 
 // Level picker
 const picker = document.getElementById('level-picker');

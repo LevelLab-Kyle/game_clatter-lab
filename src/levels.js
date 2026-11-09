@@ -7,6 +7,8 @@
 //             tools/check-levels.cjs, never shown in the game)
 //   spares    optional: true when the solution still wins with a part left out
 //             (the checker otherwise requires every part)
+//   tour      optional: true walks the player through it step by step every
+//             time, showing the solution as see-through pieces
 // Pieces are [type, x, y, rot, flip, size], like the examples (flip mirrors
 // ramps and conveyors). A level's new
 // gadget is the first level whose parts include it.
@@ -14,10 +16,11 @@
 const LEVELS = [
   {
     name: 'First Drop',
-    goal: 'The marble drops straight down. Put a ramp under it so it rolls to the star.',
+    goal: 'The marble drops straight down. Drag a ramp under it so it rolls to the star.',
     parts: { ramp: 1 },
     items: [['marble', 2, 5], ['star', 7, 0]],
     solution: [['ramp', 2, 0]],
+    tour: true,
   },
   {
     name: 'Other Way',

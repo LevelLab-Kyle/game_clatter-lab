@@ -35,6 +35,7 @@
           <button id="btn-home" class="button-icon" title="Fit everything on screen (H)" aria-label="Home"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5L8 2.5l6 5"/><path d="M3.5 6.5V13.5h9V6.5"/><path d="M6.5 13.5v-4h3v4"/></svg></button>
           <button id="btn-lock" class="button-icon on" title="Up/down scrolling is locked (click to unlock)" aria-label="Lock up and down scrolling" aria-pressed="true"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1"/><path class="shackle" d="M5 7V5a3 3 0 0 1 6 0v2"/></svg></button>
           <button id="btn-clear" class="button-icon" title="Clear the board" aria-label="Clear"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h11"/><path d="M6 4V2.5h4V4"/><path d="M4 4l.75 9.5h6.5L12 4"/><path d="M6.75 6.5v4.5M9.25 6.5v4.5"/></svg></button>
+          <button id="btn-hint" class="button-icon" title="What do I do? (show the hint)" aria-label="Show the hint">?</button>
           <div id="clear-confirm" class="card" hidden>
             <div class="title">Are you sure?</div>
             <div id="clear-text" class="muted"></div>
@@ -57,6 +58,17 @@
         </div>
         <div id="play-badge">▶ Playing — press Stop to edit</div>
         <div id="toast" hidden></div>
+        <div id="coach" hidden></div>
+        <div id="hint" class="card" role="dialog" aria-labelledby="hint-title" hidden>
+          <div id="hint-title" class="title"></div>
+          <ol id="hint-steps" hidden>
+            <li>Drag gadgets from the tray onto the board.</li>
+            <li>Press <span class="key-play">▶</span> to set your machine going.</li>
+            <li>Get anything to hit the ⭐ to win!</li>
+          </ol>
+          <div id="hint-text"></div>
+          <div class="hint-buttons"><button id="hint-ok" class="button button-accent"></button></div>
+        </div>
         <div id="win-card" class="card" hidden>
           <div class="win-star">⭐</div>
           <div id="win-title" class="title"></div>
@@ -78,7 +90,6 @@
       </div>
 
       <footer id="tray">
-        <div id="tray-label" class="tray-label">Drag a gadget onto the board</div>
         <div class="tray-row">
           <button id="tray-prev" class="button-icon" title="Previous gadgets">‹</button>
           <div id="gadget-list"><div id="gadget-track"></div></div>

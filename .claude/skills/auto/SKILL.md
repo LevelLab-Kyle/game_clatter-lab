@@ -10,7 +10,7 @@ Run these steps in order. Stop at the first failure, fix it (or report it) and d
 ## 1. Stage
 
 ```sh
-cd /Users/levellab/Repos/Experiments/Clatter-Lab
+cd /Users/levellab/Repos/games/game_clatter-lab
 git add -A
 git status --short
 ```
@@ -37,7 +37,7 @@ The game is plain HTML with no build step, but the Chrome extension cannot open 
 
 ```sh
 curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8077/index.html || \
-  python3 -I - /Users/levellab/Repos/Experiments/Clatter-Lab <<'EOF' &
+  python3 -I - /Users/levellab/Repos/games/game_clatter-lab <<'EOF' &
 import http.server, sys, os
 os.chdir(sys.argv[1])
 class H(http.server.SimpleHTTPRequestHandler):

@@ -375,6 +375,64 @@ body.playing #play-badge { opacity: 1; }
   pointer-events: none;
 }
 
+/* Hint card: below the corner buttons, centered over the board. */
+#hint {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--height-input) + 2 * var(--space-3));
+  transform: translateX(-50%);
+  width: min(360px, calc(100% - 2 * var(--space-4)));
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-color: var(--color-accent);
+  animation: pop-in 0.3s ease-out;
+}
+#hint[hidden] { display: none; }
+#hint-text { font-size: var(--font-size-lg); line-height: 1.4; }
+#hint-steps { margin: 0; padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-1); color: var(--color-text-dark); }
+#hint-steps[hidden] { display: none; }
+.key-play { color: var(--color-accent-light); font-weight: var(--font-weight-bold); }
+.hint-buttons { display: flex; justify-content: flex-end; }
+#btn-hint { font-weight: var(--font-weight-bold); font-size: var(--font-size-lg); }
+
+/* Tour bubble (level 1): points at the next thing to do. The arrow sits
+   under it, or above it with .up, at --arrow-x. */
+#coach {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: max-content; /* its size mustn't depend on where it sits, or it wobbles */
+  max-width: min(280px, calc(100% - 2 * var(--space-4)));
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-accent);
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.3;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-drop);
+  pointer-events: none;
+  will-change: transform; /* its own layer: the bob slides it instead of redrawing the text */
+  animation: coach-bob 0.9s ease-in-out infinite alternate;
+}
+#coach[hidden] { display: none; }
+#coach::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  top: 100%;
+  margin-left: -10px;
+  border: 10px solid transparent;
+  border-top-color: var(--color-accent);
+  border-bottom: 0;
+}
+#coach.up::after { top: auto; bottom: 100%; border: 10px solid transparent; border-bottom-color: var(--color-accent); border-top: 0; }
+@keyframes coach-bob { to { transform: translateY(-5px); } }
+#coach.up { animation-name: coach-bob-up; }
+@keyframes coach-bob-up { to { transform: translateY(5px); } }
+
 /* Level complete */
 .card {
   background: var(--color-surface);
@@ -456,12 +514,6 @@ body.playing #play-badge { opacity: 1; }
   padding: var(--space-2);
 }
 
-.tray-label {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-dark);
-  margin-bottom: var(--space-1);
-}
-
 /* The tray slides a page of gadgets at a time with the arrows (or a wheel /
    swipe), so a drag never turns into a scroll by accident. Whatever is cut
    off at either edge fades out to show there's more. */
@@ -538,7 +590,6 @@ body.playing #play-badge { opacity: 1; }
 }
 .gadget-card.used-up { opacity: 0.35; cursor: not-allowed; }
 .gadget-card.used-up .count { background: var(--color-core-mid); }
-body.mode-levels .tray-label { color: var(--color-text); font-size: var(--font-size); }
 
 body.playing #tray { opacity: 0.5; pointer-events: none; }
 
