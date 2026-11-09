@@ -7,7 +7,7 @@ Two modes, switched in the top bar:
 - **Levels**: puzzles that get harder as you go. Each level comes with locked pieces already on the board and a few parts in the tray (the number on each card is how many are left). Get anything to the ⭐ to win and unlock the next level. Each new gadget arrives in its own level, marked NEW in the tray. ☰ opens the level picker.
 - **Sandbox**: every gadget, no limits, plus the Examples menu.
 
-A hint card floats over the top of the board: the level's goal in Levels, or what the Sandbox is for. The ✕ in its corner or Play closes it; the **?** button by Home brings it back.
+A hint card floats over the top of the board: the level's goal in Levels, or what the Sandbox is for. A tap anywhere on it (or its ✕, or Play) closes it; the **?** button by Home brings it back.
 
 Level 1 is always a guided tour: its solution shows as a see-through ramp, and a blue bubble points at each next step — the ramp in the tray, the see-through spot, then ▶ (or Stop, after a miss). Any level can do this with `tour: true` in `src/levels.js`.
 
@@ -29,7 +29,7 @@ Open `index.html` in a browser. No build step, no server, no internet needed.
 | Size | The Size button or `S` steps balls, blocks, ramps, dominoes, planks, buckets and seesaws through a set of sizes and wraps around; `Shift+S` steps back. Balls go ball → bowling ball → marble; blocks go 1×1 → 2×1 → 1×2 → 2×2 → ½×½ → 1×½ → ½×1; ramps go 1×1 → 2×1 → 2×2 → 1×2; dominoes change height only, 1½ → 2 → 1; planks change length only, 3 → 4 → 2; buckets grow to fit the marble → ball → bowling ball; seesaws go 3 wide → 4 wide → 3 shifted left → 3 shifted right. It keeps its bottom-left corner, sliding left and/or down when growing into something, and skips sizes that don't fit |
 | Nudge | Arrow keys: move the selected gadget ¼ cell |
 | Pan | Drag empty space or scroll (mouse); two fingers (touch). The view settles onto whole cells and never goes below the ground |
-| Zoom | `Ctrl`/`Cmd` + scroll, or pinch (trackpad or touch screen) |
+| Zoom | `Ctrl`/`Cmd` + scroll, or pinch (trackpad or touch screen). The bottom of the screen stays put |
 | Home | The ⌂ button in the board's top-left corner, or `H`: fit the whole contraption on screen. Also happens on load, when loading an example and when the window resizes |
 | Play / Stop | One button in the board's top-right corner (it turns into Stop while playing), or `Space` |
 | Lock | The 🔒 button between Home and Clear, on by default: panning and scrolling only move left and right, so the view's height stays put. Click to unlock (the shackle opens); remembered per browser |

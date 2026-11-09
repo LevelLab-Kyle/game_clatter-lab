@@ -796,7 +796,9 @@ canvas.addEventListener('pointermove', (ev) => {
   if (pinch.mode === 'zoom') view.zoom = THREE.MathUtils.clamp(pinch.zoom * s.dist / Math.max(1, pinch.dist), ZOOM_MIN, ZOOM_MAX);
   const k = PX_PER_UNIT * view.zoom;
   view.cx = pinch.cx - (s.mid.x - pinch.mid.x) / k;
-  if (!lockY) view.cy = pinch.cy + (s.mid.y - pinch.mid.y) / k;
+  // Zooming keeps the bottom of the screen where it was.
+  view.cy = pinch.cy - viewSize(pinch.zoom).h / 2 + viewSize().h / 2;
+  if (!lockY) view.cy += (s.mid.y - pinch.mid.y) / k;
 });
 function endTouch(ev) {
   if (!touches.delete(ev.pointerId)) return;
@@ -818,7 +820,9 @@ canvas.addEventListener('wheel', (ev) => {
   clearTimeout(wheelSnapTimer);
   wheelSnapTimer = setTimeout(snapView, 150);
   if (ev.ctrlKey || ev.metaKey) {
+    const bottom = view.cy - viewSize().h / 2; // zoom keeps the bottom of the screen where it was
     view.zoom = THREE.MathUtils.clamp(view.zoom * Math.exp(-ev.deltaY * 0.01), ZOOM_MIN, ZOOM_MAX);
+    view.cy = bottom + viewSize().h / 2;
   } else {
     view.cx += ev.deltaX / (PX_PER_UNIT * view.zoom);
     if (!lockY) view.cy -= ev.deltaY / (PX_PER_UNIT * view.zoom);
@@ -1384,7 +1388,10 @@ function homeView() {
 
 function snapView() {
   const rows = clampRows(Math.round(canvas.clientHeight / (PX_PER_UNIT * view.zoom)));
-  viewSnap = gridTarget(view.cx, view.cy, zoomForRows(rows));
+  const zoom = zoomForRows(rows);
+  // Settling onto whole rows keeps the bottom of the screen where it is.
+  const bottom = view.cy - viewSize().h / 2;
+  viewSnap = gridTarget(view.cx, bottom + viewSize(zoom).h / 2, zoom);
 }
 
 function updateViewSnap(dt) {
@@ -1634,7 +1641,7 @@ function flyHint(closing) {
     { duration: 250, easing: closing ? 'ease-in' : 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
   if (closing) hintAnim.onfinish = () => { hint.hidden = true; hintAnim = null; };
 }
-document.getElementById('hint-close').onclick = hideHint;
+hint.onclick = hideHint; // a tap anywhere on the card closes it, ✕ included
 btnHint.onclick = () => { if (hintOpen) hideHint(); else showHint(); };
 
 // Guided tour: a level with `tour: true` (level 1) walks the player
