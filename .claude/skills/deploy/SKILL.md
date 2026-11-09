@@ -15,7 +15,7 @@ of the repo's runtime files. Only committed work goes up.
 ## 1. Preconditions
 
 ```sh
-cd /Users/levellab/Repos/Experiments/Clatter-Lab
+cd /Users/levellab/Repos/games/game_clatter-lab
 git status --short
 git rev-parse --short HEAD
 git status -sb | head -1
@@ -50,7 +50,7 @@ sync: no permission bits (the web host rejects them), delete what the
 source no longer has, keep the output short.
 
 ```sh
-cd /Users/levellab/Repos/Experiments/Clatter-Lab
+cd /Users/levellab/Repos/games/game_clatter-lab
 REMOTE="levellab:~/www/studio/clatter-lab"
 VERSION=$(git rev-parse --short HEAD)
 STAGE=$(mktemp -d)

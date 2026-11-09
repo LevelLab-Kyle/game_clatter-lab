@@ -274,6 +274,7 @@ body.mode-sandbox .examples { flex: 1 1 auto; }
   top: var(--space-3);
   right: var(--space-3);
   display: flex;
+  align-items: flex-start; /* Undo and Redo stay small beside the big Play */
   gap: var(--space-2);
 }
 #run-tools > .button-icon {
@@ -286,6 +287,9 @@ body.mode-sandbox .examples { flex: 1 1 auto; }
 #run-tools > #btn-play:hover { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-text); }
 #btn-play .icon-stop, body.playing #btn-play .icon-play { display: none; }
 body.playing #btn-play .icon-stop { display: block; }
+/* Play/Stop is twice the size of the other buttons: it's the main thing to press. */
+#run-tools > #btn-play { width: calc(2 * var(--height-input)); height: calc(2 * var(--height-input)); border-radius: var(--radius-lg); }
+#btn-play svg { width: 36px; height: 36px; }
 /* The lock is lit when on; off, its shackle swings open. */
 #btn-lock.on { color: var(--color-accent); }
 #btn-lock:not(.on) .shackle { transform: translate(-3px, -1px) rotate(-25deg); transform-origin: 11px 7px; }
@@ -391,10 +395,27 @@ body.playing #play-badge { opacity: 1; }
 }
 #hint[hidden] { display: none; }
 #hint-text { font-size: var(--font-size-lg); line-height: 1.4; }
+/* A gadget-menu button drawn inside the hint text */
+.inline-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 0 2px;
+  vertical-align: text-bottom; /* its bottom on the bottom of the text */
+  background: var(--color-surface-light);
+  border: var(--border-width) var(--border-style) var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+.inline-icon svg { width: 14px; height: 14px; }
 #hint-steps { margin: 0; padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-1); color: var(--color-text-dark); }
 #hint-steps[hidden] { display: none; }
 .key-play { color: var(--color-accent-light); font-weight: var(--font-weight-bold); }
 .hint-buttons { display: flex; justify-content: flex-end; }
+.hint-buttons[hidden] { display: none; }
+.hint-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.hint-head .button-icon { flex: 0 0 auto; margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0; }
 #btn-hint { font-weight: var(--font-weight-bold); font-size: var(--font-size-lg); }
 
 /* Tour bubble (level 1): points at the next thing to do. The arrow sits
@@ -597,6 +618,7 @@ button, select, #item-tools { touch-action: manipulation; }
 
 /* Phones: the top bar stays on one row; the level name or example menu shrinks to fit. */
 @media (max-width: 720px) {
+  #hint { top: calc(2 * var(--height-input) + 2 * var(--space-3)); } /* below the big Play button */
   #topbar { gap: var(--space-2); }
   .modes { flex: 0 0 auto; }
   .level-info, .examples { min-width: 0; flex: 1 1 auto; }

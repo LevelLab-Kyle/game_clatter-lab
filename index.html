@@ -60,14 +60,17 @@
         <div id="toast" hidden></div>
         <div id="coach" hidden></div>
         <div id="hint" class="card" role="dialog" aria-labelledby="hint-title" hidden>
-          <div id="hint-title" class="title"></div>
+          <div class="hint-head">
+            <div id="hint-title" class="title"></div>
+            <button id="hint-close" class="button-icon" title="Close" aria-label="Close">✕</button>
+          </div>
           <ol id="hint-steps" hidden>
-            <li>Drag gadgets from the tray onto the board.</li>
-            <li>Press <span class="key-play">▶</span> to set your machine going.</li>
-            <li>Get anything to hit the ⭐ to win!</li>
+            <li>Drag a part onto the board.</li>
+            <li>Press <span class="key-play">▶</span> to make it go.</li>
+            <li>Hit the ⭐ to win!</li>
           </ol>
           <div id="hint-text"></div>
-          <div class="hint-buttons"><button id="hint-ok" class="button button-accent"></button></div>
+          <div id="hint-buttons" class="hint-buttons"><button id="hint-ok" class="button button-accent">Let’s go!</button></div>
         </div>
         <div id="win-card" class="card" hidden>
           <div class="win-star">⭐</div>

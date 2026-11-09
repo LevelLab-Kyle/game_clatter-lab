@@ -1577,11 +1577,26 @@ document.getElementById('mode-sandbox').onclick = enterSandbox;
 
 // The hint card floats over the top of the board: the level's goal, or what
 // the Sandbox is for. The first visit to each mode also gets the three steps
-// (drag, play, hit the star). Play or "Got it" closes it; ? brings it back.
+// (drag, play, hit the star). Play, ✕ or Let's go! closes it; ? brings it back.
 const INTRO_KEY = 'clatter-lab.intro.v1';
 const hint = document.getElementById('hint');
 let introSeen = {}; // mode -> true once its welcome has been closed
 try { introSeen = JSON.parse(localStorage.getItem(INTRO_KEY)) || {}; } catch {}
+
+// Fills `el` with `text`, drawing {rotate}, {size} and {flip} as the icon
+// of that button in the gadget menu, so the hint shows what to look for.
+function setTextWithIcons(el, text) {
+  el.replaceChildren();
+  text.split(/\{(\w+)\}/).forEach((part, n) => {
+    const button = n % 2 && document.getElementById(`tool-${part}`);
+    if (!button) { el.append(n % 2 ? `{${part}}` : part); return; }
+    const icon = document.createElement('span');
+    icon.className = 'inline-icon';
+    icon.title = button.title;
+    icon.append(button.querySelector('svg').cloneNode(true));
+    el.append(icon);
+  });
+}
 
 function showHint() {
   const level = currentLevel();
@@ -1590,10 +1605,10 @@ function showHint() {
     ? (level ? 'Welcome to Clatter Lab!' : 'Welcome to the Sandbox!')
     : (level ? `Level ${levelIndex + 1}: ${level.name}` : 'Sandbox');
   document.getElementById('hint-steps').hidden = !first;
-  document.getElementById('hint-text').textContent = level
-    ? (first ? 'Level 1: ' : '') + level.goal
-    : 'Every gadget, no limits. Build any machine you like, or pick one from Examples up top.';
-  document.getElementById('hint-ok').textContent = first ? 'Let’s go!' : 'Got it';
+  setTextWithIcons(document.getElementById('hint-text'), level
+    ? (first ? `Level ${levelIndex + 1}: ` : '') + level.goal
+    : 'Use any part you like. Build anything! Need ideas? Try Examples at the top.');
+  document.getElementById('hint-buttons').hidden = !first; // the welcome ends with Let's go!
   hint.hidden = false;
 }
 
@@ -1606,6 +1621,7 @@ function hideHint() {
   }
 }
 document.getElementById('hint-ok').onclick = hideHint;
+document.getElementById('hint-close').onclick = hideHint;
 document.getElementById('btn-hint').onclick = () => { if (hint.hidden) showHint(); else hideHint(); };
 
 // Guided tour: a level with `tour: true` (level 1) walks the player
@@ -1660,15 +1676,15 @@ function updateCoach(dt) {
   if (!on || !hint.hidden || !winCard.hidden || won) {
     // nothing to say
   } else if (playing) {
-    if (runTime > 3) { text = 'Missed! Press ■ to stop, then try again.'; at = 'play'; }
+    if (runTime > 3) { text = 'Missed! Press ■, then try again.'; at = 'play'; }
   } else if (drag?.kind === 'new' || drag?.kind === 'move') {
-    if (ghost) { text = `Let go over the see-through ${name}.`; at = 'ghost'; }
+    if (ghost) { text = `Drop it on the see-through ${name}.`; at = 'ghost'; }
   } else if (!ghost) {
-    text = 'Now press ▶ to let the marble drop!'; at = 'play';
+    text = 'Now press ▶ to make it go!'; at = 'play';
   } else if (partsLeft(partType(ghost.type)) > 0) {
-    text = `Drag the ${name} from the tray onto the board.`; at = 'tray';
+    text = `Drag the ${name} onto the board.`; at = 'tray';
   } else {
-    text = `Drag your ${name} onto the see-through one, right under the marble.`; at = 'ghost';
+    text = `Move your ${name} onto the see-through one.`; at = 'ghost';
   }
 
   let point = null;
@@ -1740,6 +1756,8 @@ picker.addEventListener('pointerdown', (ev) => { if (ev.target === picker) close
 const winCard = document.getElementById('win-card');
 let winTimer = null;
 
+const titleCase = (text) => text.replace(/\b\w/g, (c) => c.toUpperCase());
+
 function levelWon() {
   const level = currentLevel();
   levelsDone.add(level.name);
@@ -1748,8 +1766,8 @@ function levelWon() {
   document.getElementById('win-title').textContent = last ? 'You beat every level!' : `Level ${levelIndex + 1} done!`;
   const next = !last && newGadgetOf(levelIndex + 1);
   document.getElementById('win-text').textContent = last
-    ? 'Now build anything you like in the Sandbox.'
-    : next ? `Next up: the ${GADGETS[next].name.toLowerCase()}.` : `Next up: ${LEVELS[levelIndex + 1].name}.`;
+    ? 'Now build anything you like in the Sandbox!'
+    : next ? `Next up: The ${titleCase(GADGETS[next].name)}.` : `Next up: ${LEVELS[levelIndex + 1].name}.`;
   document.getElementById('win-next').textContent = last ? 'Sandbox ▶' : 'Next level ▶';
   // Let the star spin a moment first.
   clearTimeout(winTimer);
