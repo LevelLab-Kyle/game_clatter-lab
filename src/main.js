@@ -1425,14 +1425,17 @@ function homeView() {
     minX = Math.min(minX, x); maxX = Math.max(maxX, x + f.w); maxY = Math.max(maxY, y + f.h);
   }
   if (!items.size) { minX = 0; maxX = 16; maxY = 0; }
-  // Fit the contraption with a cell of margin each side (plus headroom),
-  // zooming in or out; capped so a lone piece doesn't fill the screen.
-  const fitW = canvas.clientWidth / (PX_PER_UNIT * (maxX - minX + 2));
-  const fitH = canvas.clientHeight / (PX_PER_UNIT * (maxY + 3));
-  const fit = THREE.MathUtils.clamp(Math.min(fitW, fitH), ZOOM_MIN, 2);
-  // Round the rows up so the contraption still fits.
-  const zoom = zoomForRows(clampRows(Math.ceil(canvas.clientHeight / (PX_PER_UNIT * fit) - 1e-6), 2));
-  viewSnap = gridTarget((minX + maxX) / 2, maxY / 2, zoom);
+  // The cells to show: the contraption on whole cells plus one more left,
+  // right and above, down to the row of ground. Fit the fewest rows that
+  // hold them (no closer than 2x, so a lone piece doesn't fill the screen),
+  // and put the spare width evenly either side, on a grid line.
+  const left = Math.floor(minX) - 1, right = Math.ceil(maxX) + 1;
+  const aspect = canvas.clientWidth / canvas.clientHeight;
+  const rows = clampRows(Math.ceil(Math.max(maxY + 1 - MIN_VIEW_Y, (right - left) / aspect) - 1e-6), 2);
+  const zoom = zoomForRows(rows);
+  const { w, h } = viewSize(zoom);
+  const viewLeft = left - Math.floor((w - (right - left)) / 2);
+  viewSnap = { cx: viewLeft + w / 2, cy: MIN_VIEW_Y + h / 2, zoom };
 }
 
 function snapView() {

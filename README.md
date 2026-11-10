@@ -32,7 +32,7 @@ The page matches the device's light or dark setting, and switches live if it cha
 | Nudge | Arrow keys: move the selected gadget ¼ cell |
 | Pan | Drag empty space or scroll (mouse); two fingers (touch). The view settles onto whole cells and never goes below the ground |
 | Zoom | `Ctrl`/`Cmd` + scroll, or pinch (trackpad or touch screen). The bottom of the screen stays put |
-| Home | The ⌂ button in the board's top-left corner, or `H`: fit the whole contraption on screen. Also happens on load, when loading an example and when the window resizes |
+| Home | The ⌂ button in the board's top-left corner, or `H`: fit the whole contraption on screen, with at least one cell of space left, right and above it. Also happens on load, when loading an example and when the window resizes |
 | Play / Stop | One button in the board's top-right corner (it turns into Stop while playing), or `Space` |
 | Lock | **Lock Up and Down** in the menu, on by default: panning and scrolling only move left and right, so the view's height stays put. Turn it off to move up and down too; remembered per browser |
 | Menu | **☰ Menu** at the right of the top bar slides a panel in from the right: **Levels** / **Sandbox** (the board switches behind the panel), the Level Lab account (on the website), **Sound Effects** and **Lock Up and Down**. ✕, `Escape` or a tap beside the panel closes it; while it's open, keys don't reach the game. Sound effects and the lock are remembered per browser |
