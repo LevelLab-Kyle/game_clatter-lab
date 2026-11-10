@@ -697,3 +697,24 @@ button, select, #item-tools { touch-action: manipulation; }
   .examples select { min-width: 0; } /* natural width, shrinking if it must */
   .examples label { display: none; }
 }
+
+/* Level Lab sign-in and sharing (studio.js). Both buttons stay hidden until
+   Level Lab answers; Share is for the Sandbox only. */
+#btn-account.on { color: var(--color-accent); }
+body.mode-levels #btn-share { display: none; }
+#cloud-card {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--height-input) + 2 * var(--space-3));
+  transform: translateX(-50%);
+  width: min(360px, calc(100% - 2 * var(--space-4)));
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-color: var(--color-accent);
+  z-index: 2;
+}
+#cloud-card[hidden] { display: none; }
+#cloud-text { font-size: var(--font-size-lg); line-height: 1.4; overflow-wrap: anywhere; }
+#cloud-no[hidden] { display: none; }

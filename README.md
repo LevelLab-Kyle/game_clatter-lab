@@ -42,6 +42,16 @@ Hit the ⭐ Star with anything to win. In a level, the level's own pieces can't 
 
 Everything is saved in the browser (localStorage) as you work and comes back when you reopen the page: the Sandbox board, view and example, and for Levels the open level, the levels you've beaten and the parts you'd placed in each one.
 
+### Level Lab accounts and sharing
+
+On the website, Clatter Lab uses [Level Lab Studio](../../platform/docs/STUDIO.md) for accounts. Both buttons sit at the right of the top bar and only appear once Level Lab answers:
+
+- **Sign In** (person icon) goes to levellab.com and comes back signed in, with the same account as Level Lab. Signed in, the levels you've beaten, the parts you placed in each level and the Sandbox board are saved to your account and follow you to any computer. Levels beaten add up across computers; for boards, the copy changed last wins. The view and the scroll lock stay on each computer.
+- **Share** (Sandbox only) saves a copy of the board and copies a link to it. The link opens that board in anyone's Sandbox, signed in or not, and Undo brings back the board they had. Sharing needs you to sign in. Each share is its own copy; past 100, the oldest one is removed.
+- Guests, the phone app and copies opened from disk play exactly as before, with the browser save.
+
+Which Level Lab it talks to comes from `?studio=` in the address: release (levellab.com) by default, or `?studio=dev` / `?studio=stage` for testing (sign in to that test site in the same browser first). Sign-in only works on studio.levellab.com.
+
 The **Examples** menu in the top bar loads ready-made contraptions (Domino Run, Seesaw Launch, Fan Elevator, Wrecking Ball, Bounce Alley, Launch & Catch, Plank Bridge, Bell Ringer). They live in `src/examples.js` as plain lists of `[type, x, y, rot]`.
 
 ## Gadgets
@@ -77,6 +87,7 @@ The **Examples** menu in the top bar loads ready-made contraptions (Domino Run, 
 | `vendor/libs.js` | Three.js + cannon-es, exposed as `THREE` and `CANNON` globals. |
 | `src/gadgets.js` | Gadget registry (code still says "gadget"). Each gadget has `makeMesh()` (looks), `makeBody()` (physics), a footprint box (`w`,`h`, multiples of ¼; an optional `footprint()` lists just the quarter cells it really fills) and an `offset` inside that box. Multi-part gadgets (seesaw, fan, pendulum) use `makeBodies(group)` to return several bodies plus constraints, and optional `onStep` / `onFrame` hooks. |
 | `src/main.js` | Scene, cameras, board state, drag/drop, play loop, sounds, Levels / Sandbox modes. |
+| `src/studio.js` | Level Lab sign-in, saving progress to the account, and share links (Studio). Loaded after `main.js`; `main.js` calls its `cloudSaved()` after each save. |
 | `src/levels.js` | The levels, easiest first: name, goal line, parts on offer, locked pieces, and one known solution (used only by the checker). |
 | `src/examples.js` | Sandbox examples. |
 | `tools/check-levels.cjs` | Plays every level and example in Node with the game's own physics (`buildWorld` in `src/gadgets.js`). A level passes when its solution reaches the star and its locked pieces alone don't. `node tools/check-levels.cjs [level] [--trace / --free]`. |

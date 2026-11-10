@@ -357,6 +357,7 @@ function saveProgress() {
       boards: levelBoards,
     }));
   } catch { /* private mode or storage full: just don't save */ }
+  if (typeof cloudSaved === 'function') cloudSaved(); // studio.js: send it to the player's account
 }
 
 // Returns true if a saved board was restored.
