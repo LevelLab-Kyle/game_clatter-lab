@@ -243,7 +243,7 @@ const LEVELS = [
       ['block', 10.5, 0, 0, false, { w: 3.5, h: 4 }], ['block', 10.5, 4, 0, false, { w: 3.5, h: 2 }],
       ['block', 14, 0, 0, false, { w: 1, h: 4 }], ['block', 14, 4, 0, false, { w: 1, h: 4 }],
       ['bowling', 11, 6],
-      ['star', 7, 3],
+      ['star', 7, 2],
     ],
     solution: [['fan', 13, 6, 2], ['block', 7, 6]],
   },
