@@ -277,9 +277,9 @@ const LEVELS = [
     goal: 'Pop the marble out of the pit. Blow it across. Then bring it back under the shelf.',
     parts: { launcher: 1, fan: 1, conveyor: 1 },
     items: [
-      ['block', 0, 0, 0, false, { w: 1, h: 3 }], ['marble', 1, 0.25], ['block', 2.25, 0, 0, false, { w: 1, h: 3 }],
-      ['block', 3.25, 2.5, 0, false, { w: 2.75, h: 0.5 }],
-      ['block', 3.25, 0, 0, false, { w: 2.75, h: 0.5 }], ['star', 4, 0.5],
+      ['block', 0, 0, 0, false, { w: 1, h: 3 }], ['marble', 1, 0.25], ['block', 2, 0, 0, false, { w: 1, h: 3 }],
+      ['block', 3, 2.5, 0, false, { w: 3, h: 0.5 }],
+      ['block', 3, 0, 0, false, { w: 3, h: 0.5 }], ['star', 4, 0.5],
       ['block', 8, 0, 0, false, { w: 1, h: 4 }], ['block', 8, 4, 0, false, { w: 1, h: 2 }],
     ],
     solution: [['launcher', 1, 0], ['fan', 0, 3], ['conveyor', 6, 0, 0, true]],
