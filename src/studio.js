@@ -144,6 +144,14 @@ function showAccount() {
   btnAccount.setAttribute('aria-label', btnAccount.title);
 }
 
+// Level Lab's sign-in shows over the game; the game never leaves.
+function signIn() {
+  studio.signIn().catch((error) => {
+    console.warn(`Could not sign in: ${error.message}`);
+    showNote('Could not reach Level Lab. Try again.');
+  });
+}
+
 btnAccount.onclick = () => {
   if (studio.user) {
     showCard({
@@ -158,7 +166,7 @@ btnAccount.onclick = () => {
       title: 'Sign In',
       text: 'Sign in to save your work. Then you can play on any computer.',
       yes: 'Sign In',
-      onYes: () => studio.signIn(),
+      onYes: signIn,
     });
   }
 };
@@ -185,7 +193,7 @@ btnShare.onclick = async () => {
       title: 'Sign In to Share',
       text: 'Sign in first. Then you can share your board with a friend.',
       yes: 'Sign In',
-      onYes: () => studio.signIn(),
+      onYes: signIn,
     });
     return;
   }

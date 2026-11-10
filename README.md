@@ -46,7 +46,7 @@ Everything is saved in the browser (localStorage) as you work and comes back whe
 
 On the website, Clatter Lab uses [Level Lab Studio](../../platform/docs/STUDIO.md) for accounts. Both buttons sit at the right of the top bar and only appear once Level Lab answers:
 
-- **Sign In** (person icon) goes to levellab.com and comes back signed in, with the same account as Level Lab. Signed in, the levels you've beaten, the parts you placed in each level and the Sandbox board are saved to your account and follow you to any computer. Levels beaten add up across computers; for boards, the copy changed last wins. The view and the scroll lock stay on each computer.
+- **Sign In** (person icon) opens Level Lab's sign-in over the game; the game stays put. It's the same account as Level Lab. If Level Lab can't be reached, a note says so. Signed in, the levels you've beaten, the parts you placed in each level and the Sandbox board are saved to your account and follow you to any computer. Levels beaten add up across computers; for boards, the copy changed last wins. The view and the scroll lock stay on each computer.
 - **Share** (Sandbox only) saves a copy of the board and copies a link to it. The link opens that board in anyone's Sandbox, signed in or not, and Undo brings back the board they had. Sharing needs you to sign in. Each share is its own copy; past 100, the oldest one is removed.
 - Guests, the phone app and copies opened from disk play exactly as before, with the browser save.
 
