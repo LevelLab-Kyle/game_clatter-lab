@@ -397,7 +397,6 @@ const GADGETS = {
     rotatable: true,
     // Rotate steps the ball through the swing levels and wraps around.
     poses: [0, 1, -1].map((rot) => ({ rot, flip: false })),
-    startRot: -1, // a new pendulum comes pulled partway back to the left
     pivotY: 3, // the rope hangs from the bottom of the bar (bar: y 3..3.25)
     rope: 2.5,
     reach: [0, 1.5], // how far across the ball sits at each swing level

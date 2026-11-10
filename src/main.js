@@ -1600,15 +1600,27 @@ let pageReady = false; // the card just appears on page load; it only flies afte
 
 // Fills `el` with `text`, drawing {rotate}, {size} and {flip} as the icon
 // of that button in the gadget menu, so the hint shows what to look for.
+// {play} and {stop} are the Play/Stop button's own icons: drawn, never the
+// ▶ / ■ characters, which iPads show as emoji.
+const ICONS = {
+  rotate: () => document.querySelector('#tool-rotate svg'),
+  size: () => document.querySelector('#tool-size svg'),
+  flip: () => document.querySelector('#tool-flip svg'),
+  play: () => document.querySelector('#btn-play .icon-play'),
+  stop: () => document.querySelector('#btn-play .icon-stop'),
+};
+const ICON_NAMES = { rotate: 'Rotate', size: 'Size', flip: 'Flip', play: 'Play', stop: 'Stop' };
 function setTextWithIcons(el, text) {
   el.replaceChildren();
   text.split(/\{(\w+)\}/).forEach((part, n) => {
-    const button = n % 2 && document.getElementById(`tool-${part}`);
-    if (!button) { el.append(n % 2 ? `{${part}}` : part); return; }
+    const svg = n % 2 && ICONS[part]?.();
+    if (!svg) { el.append(n % 2 ? `{${part}}` : part); return; }
     const icon = document.createElement('span');
     icon.className = 'inline-icon';
-    icon.title = button.title;
-    icon.append(button.querySelector('svg').cloneNode(true));
+    icon.title = ICON_NAMES[part];
+    const copy = svg.cloneNode(true);
+    copy.removeAttribute('class');
+    icon.append(copy);
     el.append(icon);
   });
 }
@@ -1743,11 +1755,11 @@ function updateCoach(dt) {
   if (!on || !winCard.hidden || won) {
     // nothing to say
   } else if (playing) {
-    if (runTime > 3) { text = 'Missed! Press ■, then try again.'; at = 'play'; }
+    if (runTime > 3) { text = 'Missed! Press {stop}, then try again.'; at = 'play'; }
   } else if (drag?.kind === 'new' || drag?.kind === 'move') {
     if (ghost) { text = `Drop it on the see-through ${name}.`; at = 'ghost'; }
   } else if (!ghost) {
-    text = 'Now press ▶ to make it go!'; at = 'play';
+    text = 'Now press {play} to make it go!'; at = 'play';
   } else if (partsLeft(partType(ghost.type)) > 0) {
     text = `Drag the ${name} onto the board.`; at = 'tray';
   } else {
@@ -1774,7 +1786,7 @@ function updateCoach(dt) {
   if (at === 'play' && hintOpen) point = null; // the card can cover that corner on phones
   if (!text || !point) { coach.hidden = true; return; }
 
-  if (coach.textContent !== text) coach.textContent = text;
+  if (coach.dataset.text !== text) { coach.dataset.text = text; setTextWithIcons(coach, text); }
   coach.hidden = false;
   coach.classList.toggle('up', dir === 'up');
   // Whole pixels, and only written when they change: fractional or
@@ -1836,7 +1848,7 @@ function levelWon() {
   document.getElementById('win-text').textContent = last
     ? 'Now build anything you like in the Sandbox!'
     : next ? `Next up: The ${titleCase(GADGETS[next].name)}` : `Next up: ${LEVELS[levelIndex + 1].name}`;
-  document.getElementById('win-next').textContent = last ? 'Sandbox ▶' : 'Next Level ▶';
+  setTextWithIcons(document.getElementById('win-next'), last ? 'Sandbox {play}' : 'Next Level {play}');
   // Let the star spin a moment first.
   clearTimeout(winTimer);
   winTimer = setTimeout(() => { toast.hidden = true; winCard.hidden = false; }, 900);

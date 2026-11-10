@@ -93,7 +93,7 @@ const LEVELS = [
   },
   {
     name: 'Blast Off',
-    goal: 'A launcher shoots whatever sits on it when you press ▶.',
+    goal: 'A launcher shoots whatever sits on it when you press {play}.',
     parts: { launcher: 1 },
     items: [['marble', 5, 0.75], ['star', 5, 3]],
     solution: [['launcher', 5, 0]],
