@@ -1278,27 +1278,33 @@ const thumbnailer = (() => {
 const trayTrack = document.getElementById('gadget-track');
 const trayPrev = document.getElementById('tray-prev');
 const trayNext = document.getElementById('tray-next');
-const CARD_STEP = 100; // card width 90 + gap 10
 let trayStart = 0; // index of the first card on screen
 
-function trayFits() { return Math.max(1, Math.floor((trayList.clientWidth + 10) / CARD_STEP)); }
-function trayMaxStart() {
+// A card's width and the gap after it, read from the page (style.css owns
+// both, so the two never disagree). Read once per layout.
+function trayMeasure() {
+  const gap = parseFloat(getComputedStyle(trayTrack).columnGap) || 0;
+  return { gap, step: (trayTrack.firstElementChild?.offsetWidth || 0) + gap };
+}
+function trayFits({ gap, step } = trayMeasure()) { return Math.max(1, Math.floor((trayList.clientWidth + gap) / step)); }
+function trayMaxStart({ gap, step } = trayMeasure()) {
   // Stop once the last card is fully on screen.
-  return Math.max(0, Math.ceil((trayTrack.children.length * CARD_STEP - 10 - trayList.clientWidth) / CARD_STEP));
+  return Math.max(0, Math.ceil((trayTrack.children.length * step - gap - trayList.clientWidth) / step));
 }
 
 function layoutTray() {
   // An arrow only takes up room when there's somewhere to go that way.
   // Showing or hiding one changes how much room the cards have, so work it
   // out twice to settle.
+  const m = trayMeasure();
   let max = 0;
   for (let pass = 0; pass < 2; pass++) {
-    max = trayMaxStart();
+    max = trayMaxStart(m);
     trayStart = THREE.MathUtils.clamp(trayStart, 0, max);
     trayPrev.classList.toggle('off', trayStart === 0);
     trayNext.classList.toggle('off', trayStart >= max);
   }
-  const shift = Math.min(trayStart * CARD_STEP, Math.max(0, trayTrack.children.length * CARD_STEP - 10 - trayList.clientWidth));
+  const shift = Math.min(trayStart * m.step, Math.max(0, trayTrack.children.length * m.step - m.gap - trayList.clientWidth));
   trayTrack.style.transform = `translateX(${-shift}px)`;
   trayList.classList.toggle('more-left', trayStart > 0);
   trayList.classList.toggle('more-right', trayStart < max);
@@ -1758,9 +1764,9 @@ function showPlayTap(ev) {
   setLockedTagMode('playing');
   lockedTag.hidden = false;
   const r = canvas.getBoundingClientRect();
-  const half = lockedTag.offsetWidth / 2 + 8; // keep it inside the board
+  const half = lockedTag.offsetWidth / 2 + 10; // keep it inside the board
   lockedTag.style.left = `${Math.round(THREE.MathUtils.clamp(ev.clientX - r.left, half, r.width - half))}px`;
-  lockedTag.style.top = `${Math.round(Math.max(ev.clientY - r.top - 8, lockedTag.offsetHeight + 8))}px`;
+  lockedTag.style.top = `${Math.round(Math.max(ev.clientY - r.top - 10, lockedTag.offsetHeight + 10))}px`;
   clearTimeout(lockedTagTimer);
   lockedTagTimer = setTimeout(() => { lockedTag.hidden = true; }, 1200);
 }
@@ -1783,9 +1789,9 @@ function updateLocked(dt) {
   if (!item || playing) { lockedTag.hidden = true; return; }
   _lockedBox.setFromObject(item.mesh);
   _lockedTop.set((_lockedBox.min.x + _lockedBox.max.x) / 2, _lockedBox.max.y, _lockedBox.max.z).project(camera);
-  const half = lockedTag.offsetWidth / 2 + 8; // keep it inside the board
+  const half = lockedTag.offsetWidth / 2 + 10; // keep it inside the board
   const x = Math.round(THREE.MathUtils.clamp((_lockedTop.x + 1) / 2 * canvas.clientWidth, half, canvas.clientWidth - half));
-  const y = Math.round((1 - _lockedTop.y) / 2 * canvas.clientHeight - 8);
+  const y = Math.round((1 - _lockedTop.y) / 2 * canvas.clientHeight - 10);
   lockedTag.style.left = `${x}px`;
   lockedTag.style.top = `${y}px`;
 }
@@ -1866,10 +1872,10 @@ function updateCoach(dt) {
   } else if (at === 'ghost') {
     _ghostBox.setFromObject(ghost.mesh);
     _ghostTop.set((_ghostBox.min.x + _ghostBox.max.x) / 2, _ghostBox.max.y, _ghostBox.max.z).project(camera);
-    point = [(_ghostTop.x + 1) / 2 * stage.width, (1 - _ghostTop.y) / 2 * stage.height - 6];
+    point = [(_ghostTop.x + 1) / 2 * stage.width, (1 - _ghostTop.y) / 2 * stage.height - 5];
   } else if (at === 'play') {
     const r = btnPlay.getBoundingClientRect();
-    point = [r.left + r.width / 2 - stage.left, r.bottom - stage.top + 4];
+    point = [r.left + r.width / 2 - stage.left, r.bottom - stage.top + 5];
     dir = 'up';
   }
   if (at === 'play' && hintOpen) point = null; // the card can cover that corner on phones
@@ -1881,9 +1887,9 @@ function updateCoach(dt) {
   // Whole pixels, and only written when they change: fractional or
   // constantly rewritten positions make the text shimmer.
   const w = coach.offsetWidth, h = coach.offsetHeight;
-  const left = Math.round(THREE.MathUtils.clamp(point[0] - w / 2, 8, stage.width - w - 8));
+  const left = Math.round(THREE.MathUtils.clamp(point[0] - w / 2, 10, stage.width - w - 10));
   const top = Math.round(dir === 'up' ? point[1] + 10 : point[1] - h - 10);
-  const arrow = Math.round(THREE.MathUtils.clamp(point[0] - left, 12, w - 12));
+  const arrow = Math.round(THREE.MathUtils.clamp(point[0] - left, 15, w - 15));
   if (coach.dataset.pos !== `${left},${top},${arrow}`) {
     coach.dataset.pos = `${left},${top},${arrow}`;
     coach.style.left = `${left}px`;

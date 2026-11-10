@@ -94,7 +94,7 @@ The **Examples** menu in the top bar loads ready-made contraptions (Domino Run, 
 | `src/examples.js` | Sandbox examples. |
 | `tools/check-levels.cjs` | Plays every level and example in Node with the game's own physics (`buildWorld` in `src/gadgets.js`). A level passes when its solution reaches the star and its locked pieces alone don't. `node tools/check-levels.cjs [level] [--trace / --free]`. |
 | `assets/sounds.js` | Four short sound effects, base64-embedded (see `assets/README.md`). |
-| `src/style.css` | Chrome, on the [Level Lab design system](https://levellab.com/style): dark theme, Roboto, 5px grid, `.button` / `.button-accent` / `.button-icon`. Tokens are copied in so the page still works offline. |
+| `src/style.css` | Chrome, on the [Level Lab design system](https://levellab.com/style): dark theme, Roboto, 5px grid, `.button` / `.button-accent` / `.button-icon`. Every gap, inset and panel padding is one `--content-gap` (`--space-2`), on every screen. Tokens are copied in so the page still works offline. |
 
 ### Swapping in real 3D assets
 

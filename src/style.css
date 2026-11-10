@@ -1,5 +1,6 @@
 /* Clatter Lab chrome, on the Level Lab design system
-   (https://levellab.com/style): 5px grid, dark theme, Roboto Light,
+   (https://levellab.com/style): 5px grid (every gap and padding is
+   --content-gap, as on the platform), dark theme, Roboto Light,
    1px borders, 5px / 10px radii, colour-only transitions. The board itself
    keeps its own sky and ground colours. */
 
@@ -38,19 +39,25 @@
   --space-3: calc(var(--grid-unit) * 3);
   --space-4: calc(var(--grid-unit) * 4);
   --space-5: calc(var(--grid-unit) * 5);
+  /* The one space between and around things: every gap, inset and panel
+     padding uses it, on every screen. Controls keep their own sizes (a
+     button's padding, --height-input). */
+  --content-gap: var(--space-2);
 
-  --height-header: 50px;
-  --height-input: 34px;
+  --height-header: 55px; /* a 35px button with 10px above and below */
+  --height-input: 35px; /* Level Lab's is 34px; here every size is a multiple of 5px */
 
   /* Typography */
   --font-family: 'Roboto', sans-serif;
   --font-weight: 300;
   --font-weight-bold: 700;
-  --font-size-xs: 10px;
-  --font-size-sm: 12px;
-  --font-size: 14px;
-  --font-size-lg: 16px;
-  --font-size-xl: 24px;
+  /* Three sizes, on the 5px grid like everything else: tiny tags (NEW, part
+     counts, ✓), all text, and big things (tile numbers, the win note,
+     ‹ ›). Lines are 20px for text. */
+  --font-size-sm: 10px;
+  --font-size: 15px;
+  --font-size-lg: 25px;
+  --line-height: 20px;
 
   /* Layout */
   --border-width: 1px;
@@ -58,7 +65,7 @@
   --radius-sm: 5px;
   --radius-lg: 10px;
   --overlay-black-50: color-mix(in srgb, black 50%, transparent);
-  --shadow-drop: 0 4px 8px var(--overlay-black-50);
+  --shadow-drop: 0 5px 10px var(--overlay-black-50);
 }
 
 /* Themes: dark and light, picked to match the device (the script at the top
@@ -110,7 +117,7 @@ body {
   font-size: var(--font-size);
   font-weight: var(--font-weight);
   color: var(--color-text);
-  line-height: 1.5;
+  line-height: var(--line-height);
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
@@ -176,7 +183,7 @@ button, input, select { font: inherit; }
   border-radius: var(--radius-sm);
   color: var(--color-link);
   cursor: pointer;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size);
   line-height: 1;
   transition: color 0.15s ease;
 }
@@ -214,7 +221,7 @@ select {
 select:focus { outline: none; border-color: var(--color-accent); }
 
 /* Text utilities */
-.title { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
+.title { font-weight: var(--font-weight-bold); }
 .muted { color: var(--color-text-dark); }
 
 /* Layout */
@@ -231,12 +238,13 @@ select:focus { outline: none; border-color: var(--color-accent); }
 
 #topbar {
   position: relative;
-  height: calc(var(--height-header) + env(safe-area-inset-top));
+  /* plus its bottom line, so the 55px inside is all space and buttons */
+  height: calc(var(--height-header) + var(--border-width) + env(safe-area-inset-top));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
-  padding: env(safe-area-inset-top) var(--space-2) 0;
+  gap: var(--content-gap);
+  padding: env(safe-area-inset-top) var(--content-gap) 0;
   background: var(--color-surface);
   border-bottom: var(--border-width) var(--border-style) var(--color-border);
 }
@@ -255,12 +263,12 @@ select:focus { outline: none; border-color: var(--color-accent); }
 }
 #brand.no-room { visibility: hidden; }
 
-.examples { display: flex; align-items: center; gap: var(--space-2); }
+.examples { display: flex; align-items: center; gap: var(--content-gap); }
 
 /* Levels / Sandbox switch (in the menu), and what the top bar shows in each mode */
 .modes {
   display: flex;
-  padding: 2px;
+  padding: var(--space-1);
   background: var(--color-background);
   border: var(--border-width) var(--border-style) var(--color-border);
   border-radius: var(--radius-sm);
@@ -269,13 +277,13 @@ select:focus { outline: none; border-color: var(--color-accent); }
   padding: var(--space-1) var(--space-2);
   background: none;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   color: var(--color-text-dark);
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 .mode.on { background: var(--color-surface-light); color: var(--color-text); font-weight: var(--font-weight-bold); }
-.level-info { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex: 1 1 auto; }
+.level-info { display: flex; align-items: center; gap: var(--content-gap); min-width: 0; flex: 1 1 auto; }
 .level-title { font-weight: var(--font-weight-bold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.mode-levels .examples, body.mode-sandbox .level-info { display: none; }
 body.mode-sandbox .examples { flex: 1 1 auto; }
@@ -286,10 +294,10 @@ body.mode-sandbox .examples { flex: 1 1 auto; }
 /* Home and Clear float over the board's top-left corner. Clear asks first. */
 #view-tools {
   position: absolute;
-  top: var(--space-3);
-  left: var(--space-3);
+  top: var(--content-gap);
+  left: var(--content-gap);
   display: flex;
-  gap: var(--space-2);
+  gap: var(--content-gap);
   align-items: flex-start;
 }
 #view-tools > .button-icon {
@@ -303,11 +311,11 @@ body.mode-sandbox .examples { flex: 1 1 auto; }
    shows a stop square while playing. */
 #run-tools {
   position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
+  top: var(--content-gap);
+  right: var(--content-gap);
   display: flex;
   align-items: flex-start; /* Undo and Redo stay small beside the big Play */
-  gap: var(--space-2);
+  gap: var(--content-gap);
 }
 #run-tools > .button-icon {
   background: var(--color-surface);
@@ -321,19 +329,19 @@ body.mode-sandbox .examples { flex: 1 1 auto; }
 body.playing #btn-play .icon-stop { display: block; }
 /* Play/Stop is twice the size of the other buttons: it's the main thing to press. */
 #run-tools > #btn-play { width: calc(2 * var(--height-input)); height: calc(2 * var(--height-input)); border-radius: var(--radius-lg); }
-#btn-play svg { width: 36px; height: 36px; }
+#btn-play svg { width: 35px; height: 35px; }
 #clear-confirm {
   position: absolute;
-  top: calc(var(--height-input) + var(--space-2));
+  top: calc(var(--height-input) + var(--content-gap));
   left: 0;
   width: 240px;
-  padding: var(--space-3);
+  padding: var(--content-gap);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--content-gap);
 }
 #clear-confirm[hidden] { display: none; }
-.confirm-buttons { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.confirm-buttons { display: flex; gap: var(--content-gap); justify-content: flex-end; }
 .button-danger { background: var(--color-error); border-color: var(--color-error); color: var(--color-on-accent); }
 
 /* While playing, a frame and a badge make it plain the board isn't
@@ -342,7 +350,7 @@ body.playing #btn-play .icon-stop { display: block; }
   content: '';
   position: absolute;
   inset: 0;
-  border: 4px solid var(--color-accent);
+  border: 5px solid var(--color-accent);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -351,7 +359,7 @@ body.playing #stage::after { opacity: 1; }
 #play-badge {
   position: absolute;
   left: 50%;
-  bottom: var(--space-4);
+  bottom: var(--content-gap);
   transform: translateX(-50%);
   background: var(--color-accent);
   color: var(--color-on-accent);
@@ -391,7 +399,7 @@ body.loading #loader { display: flex; }
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
+  border: 5px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
   border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -430,12 +438,13 @@ body.loading #loader { display: flex; }
 #toast {
   position: absolute;
   left: 50%;
-  top: var(--space-4);
+  top: var(--content-gap);
   transform: translateX(-50%);
   background: var(--color-accent);
   color: var(--color-on-accent);
   font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
+  line-height: 30px; /* 25px text needs more than the 20px text line */
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-drop);
@@ -446,39 +455,38 @@ body.loading #loader { display: flex; }
 #hint {
   position: absolute;
   left: 50%;
-  top: calc(var(--height-input) + 2 * var(--space-3));
+  top: calc(var(--height-input) + 2 * var(--content-gap));
   transform: translateX(-50%);
-  width: min(360px, calc(100% - 2 * var(--space-4)));
-  padding: var(--space-4);
+  width: min(360px, calc(100% - 2 * var(--content-gap)));
+  padding: var(--content-gap);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--content-gap);
   border-color: var(--color-accent);
   transform-origin: center center;
   cursor: pointer; /* a tap anywhere closes it */
 }
 #hint[hidden] { display: none; }
-#hint-text { font-size: var(--font-size-lg); line-height: 1.4; }
 /* A gadget-menu button drawn inside the hint text */
 .inline-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  margin: 0 2px;
+  width: 20px;
+  height: 20px;
   vertical-align: text-bottom; /* its bottom on the bottom of the text */
   background: var(--color-surface-light);
   border: var(--border-width) var(--border-style) var(--color-accent);
   border-radius: var(--radius-sm);
 }
-.inline-icon svg { width: 14px; height: 14px; }
+.inline-icon svg { width: 15px; height: 15px; }
 /* On a blue fill (tour bubble, blue buttons) the icon goes plain, in the text color */
-#coach .inline-icon, .button-accent .inline-icon, #locked-tag .inline-icon { width: auto; height: auto; margin: 0; background: none; border: none; vertical-align: -2px; }
+#coach .inline-icon, .button-accent .inline-icon, #locked-tag .inline-icon { width: auto; height: auto; margin: 0; background: none; border: none; vertical-align: middle; }
 #coach .inline-icon svg, .button-accent .inline-icon svg, #locked-tag .inline-icon svg { width: 1em; height: 1em; }
-.hint-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
-.hint-head .button-icon { flex: 0 0 auto; margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0; }
-#btn-hint { font-weight: var(--font-weight-bold); font-size: var(--font-size-lg); }
+.hint-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--content-gap); }
+/* ✕ reaches halfway into the card's padding, toward its corner */
+.hint-head .button-icon { flex: 0 0 auto; margin: calc(var(--content-gap) / -2) calc(var(--content-gap) / -2) 0 0; }
+#btn-hint { font-weight: var(--font-weight-bold); }
 
 /* Tour bubble (level 1): points at the next thing to do. The arrow sits
    under it, or above it with .up, at --arrow-x. */
@@ -487,13 +495,11 @@ body.loading #loader { display: flex; }
   left: 0;
   top: 0;
   width: max-content; /* its size mustn't depend on where it sits, or it wobbles */
-  max-width: min(280px, calc(100% - 2 * var(--space-4)));
+  max-width: min(280px, calc(100% - 2 * var(--content-gap)));
   padding: var(--space-2) var(--space-3);
   background: var(--color-accent);
   color: var(--color-on-accent);
-  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
-  line-height: 1.3;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-drop);
   pointer-events: none;
@@ -545,19 +551,19 @@ body.loading #loader { display: flex; }
 #win-card {
   position: absolute;
   left: 50%;
-  top: var(--space-5);
+  top: var(--content-gap);
   transform: translateX(-50%);
-  width: min(320px, calc(100% - 2 * var(--space-4)));
-  padding: var(--space-4);
+  width: min(320px, calc(100% - 2 * var(--content-gap)));
+  padding: var(--content-gap);
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--content-gap);
   animation: pop-in 0.3s ease-out;
 }
 #win-card[hidden] { display: none; }
 .win-star { font-size: 40px; line-height: 1; }
-.win-buttons { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-2); }
+.win-buttons { display: flex; gap: var(--content-gap); justify-content: center; }
 @keyframes pop-in { from { transform: translateX(-50%) scale(0.8); opacity: 0; } }
 
 /* Level picker */
@@ -569,8 +575,8 @@ body.loading #loader { display: flex; }
   align-items: center;
   justify-content: center;
   /* Clear of the notch and home bar */
-  padding: calc(var(--space-4) + env(safe-area-inset-top)) calc(var(--space-4) + env(safe-area-inset-right))
-    calc(var(--space-4) + env(safe-area-inset-bottom)) calc(var(--space-4) + env(safe-area-inset-left));
+  padding: calc(var(--content-gap) + env(safe-area-inset-top)) calc(var(--content-gap) + env(safe-area-inset-right))
+    calc(var(--content-gap) + env(safe-area-inset-bottom)) calc(var(--content-gap) + env(safe-area-inset-left));
   background: var(--overlay-black-50);
 }
 #level-picker[hidden] { display: none; }
@@ -579,32 +585,38 @@ body.loading #loader { display: flex; }
   max-height: 100%;
   display: flex;
   flex-direction: column;
-  padding: var(--space-4);
-  gap: var(--space-3);
+  padding: var(--content-gap);
+  gap: var(--content-gap);
 }
-/* ‹ World 1: Getting Started › centered on the panel, ✕ at the far right
-   (room is kept for it on both sides, so the title never runs under it) */
+/* A header bar, as in Level Lab's dialogs (.modal-part-header): ‹ World 1:
+   Getting Started › centered on the panel, ✕ at the far right (room is
+   kept for it on both sides, so the title never runs under it). */
 .picker-head {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 0 var(--height-input);
+  margin: calc(-1 * var(--content-gap));
+  margin-bottom: 0;
+  padding: var(--content-gap) calc(var(--content-gap) + var(--height-input));
+  border-bottom: var(--border-width) var(--border-style) var(--color-border);
 }
-#picker-close { position: absolute; right: 0; }
+#picker-close { position: absolute; right: var(--content-gap); }
 #world-title { flex: 0 1 auto; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #world-prev { margin-left: auto; }
 #world-next { margin-right: auto; }
-#world-prev, #world-next { font-size: var(--font-size-xl); }
+#world-prev, #world-next { font-size: var(--font-size-lg); }
 /* Every world's page sits in the same spot; only the open one shows, so the
    panel keeps one size. */
 #level-grid { display: grid; overflow-y: auto; }
 .world-page {
   grid-area: 1 / 1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  /* At least 125px: 25 (number) + 35 (picture) + 2 x 20 (name) + 2 x 10
+     (padding) + 2 (border) = 122, so a tile always fits square */
+  grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
   align-content: start;
-  gap: var(--space-2);
+  gap: var(--content-gap);
   visibility: hidden;
 }
 .world-page.on { visibility: visible; }
@@ -614,6 +626,7 @@ body.loading #loader { display: flex; }
 #world-dots .dot.on { background: var(--color-accent); }
 .level-tile {
   position: relative;
+  aspect-ratio: 1; /* square */
   padding: var(--space-2);
   background: var(--color-background);
   border: var(--border-width) var(--border-style) var(--color-border);
@@ -628,9 +641,10 @@ body.loading #loader { display: flex; }
   .level-tile:not(:disabled):hover { border-color: var(--color-accent); }
 }
 .level-tile.current { border-color: var(--color-accent); }
-.level-tile .num { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); }
-.level-tile .icon { width: 36px; height: 36px; display: block; margin: 0 auto; }
-.level-tile .name { font-size: var(--font-size-xs); color: var(--color-text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.level-tile .num { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); line-height: 25px; }
+.level-tile .icon { width: 35px; height: 35px; display: block; margin: 0 auto; }
+/* Up to two lines, so names don't cut off */
+.level-tile .name { color: var(--color-text-dark); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .level-tile .badge { position: absolute; top: var(--space-1); right: var(--space-1); font-size: var(--font-size-sm); }
 .level-tile.done .badge { color: var(--color-success); }
 
@@ -639,14 +653,14 @@ body.loading #loader { display: flex; }
   min-width: 0;
   background: var(--color-surface);
   border-top: var(--border-width) var(--border-style) var(--color-border);
-  padding: var(--space-2);
+  padding: var(--content-gap);
 }
 
 /* The tray slides a page of gadgets at a time with the arrows (or a wheel /
    swipe), so a drag never turns into a scroll by accident. Whatever is cut
    off at either edge fades out to show there's more. */
 .tray-row { display: flex; align-items: center; gap: var(--space-1); }
-.tray-row .button-icon { flex: 0 0 auto; font-size: var(--font-size-xl); height: 90px; } /* as tall as a card */
+.tray-row .button-icon { flex: 0 0 auto; font-size: var(--font-size-lg); height: 90px; } /* as tall as a card */
 .tray-row .button-icon.off { display: none; }
 
 #gadget-list {
@@ -663,7 +677,7 @@ body.loading #loader { display: flex; }
 
 #gadget-track {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--content-gap);
   transition: transform 0.35s ease;
 }
 
@@ -689,7 +703,8 @@ body.loading #loader { display: flex; }
 }
 .gadget-card:active { cursor: grabbing; }
 .gadget-card .icon { width: 50px; height: 50px; display: block; margin: 0 auto; pointer-events: none; }
-.gadget-card .name { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); margin-top: var(--space-1); }
+/* One line, so a long name can't spill out of the 90px card */
+.gadget-card .name { font-weight: var(--font-weight-bold); margin-top: var(--space-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gadget-card { position: relative; }
 /* In a level each card shows how many are left; used-up cards grey out. */
 .gadget-card .count {
@@ -713,9 +728,9 @@ body.loading #loader { display: flex; }
   border-radius: var(--radius-sm);
   background: var(--color-warning);
   color: var(--color-core-darkest);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
-  line-height: 16px;
+  line-height: 15px;
 }
 .gadget-card.used-up { opacity: 0.35; cursor: not-allowed; }
 .gadget-card.used-up .count { background: var(--color-core-mid); }
@@ -726,8 +741,7 @@ button, select, #item-tools { touch-action: manipulation; }
 
 /* Phones: the top bar stays on one row; the level name or example menu shrinks to fit. */
 @media (max-width: 720px) {
-  #hint { top: calc(2 * var(--height-input) + 2 * var(--space-3)); } /* below the big Play button */
-  #topbar { gap: var(--space-2); }
+  #hint { top: calc(2 * var(--height-input) + 2 * var(--content-gap)); } /* below the big Play button */
   .modes { flex: 0 0 auto; }
   .level-info, .examples { min-width: 0; flex: 1 1 auto; }
   .examples select { min-width: 0; } /* natural width, shrinking if it must */
@@ -736,23 +750,26 @@ button, select, #item-tools { touch-action: manipulation; }
 
 /* Level Lab sign-in and sharing (studio.js). Both buttons stay hidden until
    Level Lab answers; Share is for the Sandbox only. */
-#btn-account.on { color: var(--color-accent); }
 body.mode-levels #btn-share { display: none; }
 #cloud-card {
   position: absolute;
   left: 50%;
-  top: calc(var(--height-input) + 2 * var(--space-3));
+  top: calc(var(--height-input) + 2 * var(--content-gap));
   transform: translateX(-50%);
-  width: min(360px, calc(100% - 2 * var(--space-4)));
-  padding: var(--space-4);
+  width: min(360px, calc(100% - 2 * var(--content-gap)));
+  padding: var(--content-gap);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--content-gap);
   border-color: var(--color-accent);
   z-index: 2;
 }
+/* Phones: below the big Play button, like the hint */
+@media (max-width: 720px) {
+  #cloud-card { top: calc(2 * var(--height-input) + 2 * var(--content-gap)); }
+}
 #cloud-card[hidden] { display: none; }
-#cloud-text { font-size: var(--font-size-lg); line-height: 1.4; overflow-wrap: anywhere; }
+#cloud-text { overflow-wrap: anywhere; }
 #cloud-no[hidden] { display: none; }
 
 /* The menu: a panel that slides in from the right over everything, with
@@ -783,10 +800,10 @@ body.mode-levels #btn-share { display: none; }
   width: min(320px, 85vw);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--content-gap);
   /* Clear of the notch and home bar */
-  padding: calc(var(--space-2) + env(safe-area-inset-top)) calc(var(--space-3) + env(safe-area-inset-right))
-    calc(var(--space-3) + env(safe-area-inset-bottom)) var(--space-3);
+  padding: calc(var(--content-gap) + env(safe-area-inset-top)) calc(var(--content-gap) + env(safe-area-inset-right))
+    calc(var(--content-gap) + env(safe-area-inset-bottom)) var(--content-gap);
   overflow-y: auto;
   background: var(--color-surface);
   border-left: var(--border-width) var(--border-style) var(--color-border);
@@ -799,16 +816,25 @@ body.mode-levels #btn-share { display: none; }
 @media (prefers-reduced-motion: reduce) {
   #menu, #menu-backdrop, #menu-panel { transition: none; }
 }
-/* As tall as the top bar, so ✕ sits near where the Menu button was */
+/* A header bar, as in Level Lab's dialogs (.modal-part-header), as tall as
+   the top bar so their bottom lines meet. */
 .menu-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: calc(var(--height-header) - var(--space-2));
+  min-height: calc(var(--height-header) + var(--border-width)); /* plus its line, like the top bar */
+  /* Out to the panel's edges (its right padding includes the safe area) */
+  margin: calc(-1 * var(--content-gap)) calc(-1 * (var(--content-gap) + env(safe-area-inset-right))) 0
+    calc(-1 * var(--content-gap));
+  padding: 0 calc(var(--content-gap) + env(safe-area-inset-right)) 0 var(--content-gap);
+  border-bottom: var(--border-width) var(--border-style) var(--color-border);
 }
-.menu-section { display: flex; flex-direction: column; gap: var(--space-2); }
+.menu-section { display: flex; flex-direction: column; }
+.menu-section > * + * { margin-top: var(--content-gap); }
+/* A label sits directly above what it names, as in Level Lab's forms. */
+.menu-label + *,
+.menu-label + [hidden] + * { margin-top: 0; } /* also past a hidden line (the email, signed out) */
 .menu-label {
-  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-dark);
   text-transform: uppercase;
@@ -839,28 +865,27 @@ body.mode-levels #btn-share { display: none; }
 .switch {
   position: relative;
   flex: none;
-  width: 40px;
-  height: 20px;
-  border-radius: 10px;
-  background: var(--color-surface-light);
-  border: var(--border-width) var(--border-style) var(--color-border-light);
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  width: 50px;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--color-border-light);
+  transition: background-color 0.15s ease;
 }
 .switch::after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
+  top: var(--space-1);
+  left: var(--space-1);
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--color-text);
   transition: transform 0.15s ease, background-color 0.15s ease;
 }
-.menu-row[aria-checked='true'] .switch { background: var(--color-accent); border-color: var(--color-accent); }
+.menu-row[aria-checked='true'] .switch { background: var(--color-accent); }
 .menu-row[aria-checked='true'] .switch::after { transform: translateX(20px); background: var(--color-on-accent); }
 
-/* Levels / Sandbox fills the width of the menu, rows as tall as the switches */
+/* Levels / Sandbox fills the width of the menu */
 #menu-panel .modes { width: 100%; }
 #menu-panel .mode { flex: 1 1 0; min-height: 40px; }
 /* The picked one gets a blue outline (inside its edge, so nothing shifts). */
@@ -868,3 +893,5 @@ body.mode-levels #btn-share { display: none; }
 
 /* The Menu button: ☰ and its name */
 #btn-menu { gap: var(--space-1); flex: none; }
+/* Icon-only buttons are square */
+#btn-levels { width: var(--height-input); padding: 0; flex: none; }
