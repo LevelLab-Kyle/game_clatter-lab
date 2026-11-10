@@ -464,8 +464,8 @@ body.loading #loader { display: flex; }
 }
 .inline-icon svg { width: 14px; height: 14px; }
 /* On a blue fill (tour bubble, blue buttons) the icon goes plain, in the text color */
-#coach .inline-icon, .button-accent .inline-icon { width: auto; height: auto; margin: 0; background: none; border: none; vertical-align: -2px; }
-#coach .inline-icon svg, .button-accent .inline-icon svg { width: 1em; height: 1em; }
+#coach .inline-icon, .button-accent .inline-icon, #locked-tag .inline-icon { width: auto; height: auto; margin: 0; background: none; border: none; vertical-align: -2px; }
+#coach .inline-icon svg, .button-accent .inline-icon svg, #locked-tag .inline-icon svg { width: 1em; height: 1em; }
 .hint-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
 .hint-head .button-icon { flex: 0 0 auto; margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0; }
 #btn-hint { font-weight: var(--font-weight-bold); font-size: var(--font-size-lg); }
@@ -506,7 +506,7 @@ body.loading #loader { display: flex; }
 #coach.up { animation-name: coach-bob-up; }
 @keyframes coach-bob-up { to { transform: translateY(5px); } }
 
-/* "Can't move" tag over a locked piece that was tapped */
+/* "Can't move" tag over a locked piece that was tapped ("Press stop to edit" during play) */
 #locked-tag {
   position: absolute;
   transform: translate(-50%, -100%);

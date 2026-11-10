@@ -671,7 +671,10 @@ function endDrag(ev) {
   drag = null;
   canvas.classList.remove('dragging');
   if (d.kind === 'pan') snapView();
-  if (d.kind === 'pan' && d.lockedItem && Math.hypot(ev.clientX - d.startX, ev.clientY - d.startY) < 5) showLocked(d.lockedItem);
+  if (d.kind === 'pan' && Math.hypot(ev.clientX - d.startX, ev.clientY - d.startY) < 5) {
+    if (d.lockedItem) showLocked(d.lockedItem);
+    else if (d.playTap && playing) showPlayTap(ev);
+  }
   if (d.kind === 'new') {
     scene.remove(d.ghost);
     const spot = d.cell && nearestFree(d.type, d.cell.ax, d.cell.ay, d.rot);
@@ -703,6 +706,9 @@ canvas.addEventListener('pointerdown', (ev) => {
   // A level's own pieces can't be picked up: a tap on one says so.
   const lockedItem = !item && !playing && ev.button === 0 ? pickAnyItem(ev) : null;
   if (lockedItem && ev.pointerType === 'touch') showLocked(lockedItem);
+  // During play a tap anywhere says to press Stop first.
+  const playTap = playing && ev.button === 0;
+  if (playTap && ev.pointerType === 'touch') showPlayTap(ev);
   try { canvas.setPointerCapture(ev.pointerId); } catch {}
   canvas.classList.add('dragging');
   if (item) {
@@ -715,7 +721,7 @@ canvas.addEventListener('pointerdown', (ev) => {
     // On touch screens one finger never pans: that takes two (see pinch).
     if (ev.pointerType === 'touch') { canvas.classList.remove('dragging'); return; }
     viewSnap = null;
-    drag = { kind: 'pan', startX: ev.clientX, startY: ev.clientY, cx0: view.cx, cy0: view.cy, lockedItem };
+    drag = { kind: 'pan', startX: ev.clientX, startY: ev.clientY, cx0: view.cx, cy0: view.cy, lockedItem, playTap };
   }
 });
 
@@ -1663,16 +1669,37 @@ hint.onclick = hideHint; // a tap anywhere on the card closes it, ✕ included
 btnHint.onclick = () => { if (hintOpen) hideHint(); else showHint(); };
 
 // Tapping a locked piece (a level's own) gives it a quick "no" shake and
-// shows a "Can't move" tag above it for a moment.
+// shows a "Can't move" tag above it for a moment. A tap anywhere during
+// play shows "Press [stop] to edit" at that spot instead.
 const lockedTag = document.getElementById('locked-tag');
+const lockedTagHTML = lockedTag.innerHTML;
 let shaking = null; // { item, t }
 let lockedTagTimer = null;
 
+function setLockedTagMode(mode) {
+  if (lockedTag.dataset.mode === mode) return;
+  if (mode === 'playing') setTextWithIcons(lockedTag, 'Press {stop} to edit');
+  else lockedTag.innerHTML = lockedTagHTML;
+  lockedTag.dataset.mode = mode;
+}
+
 function showLocked(item) {
+  setLockedTagMode('locked');
   if (shaking && shaking.item !== item) applyTransform(shaking.item);
   shaking = { item, t: 0 };
   lockedTag.hidden = false;
   lockedTag.dataset.id = item.id;
+  clearTimeout(lockedTagTimer);
+  lockedTagTimer = setTimeout(() => { lockedTag.hidden = true; }, 1200);
+}
+
+function showPlayTap(ev) {
+  setLockedTagMode('playing');
+  lockedTag.hidden = false;
+  const r = canvas.getBoundingClientRect();
+  const half = lockedTag.offsetWidth / 2 + 8; // keep it inside the board
+  lockedTag.style.left = `${Math.round(THREE.MathUtils.clamp(ev.clientX - r.left, half, r.width - half))}px`;
+  lockedTag.style.top = `${Math.round(Math.max(ev.clientY - r.top - 8, lockedTag.offsetHeight + 8))}px`;
   clearTimeout(lockedTagTimer);
   lockedTagTimer = setTimeout(() => { lockedTag.hidden = true; }, 1200);
 }
@@ -1690,6 +1717,7 @@ function updateLocked(dt) {
       shaking = null;
     }
   }
+  if (lockedTag.dataset.mode === 'playing') { if (!playing) lockedTag.hidden = true; return; }
   const item = !lockedTag.hidden && items.get(+lockedTag.dataset.id);
   if (!item || playing) { lockedTag.hidden = true; return; }
   _lockedBox.setFromObject(item.mesh);
