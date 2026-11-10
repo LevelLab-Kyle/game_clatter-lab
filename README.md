@@ -98,3 +98,19 @@ The **Examples** menu in the top bar loads ready-made contraptions (Domino Run, 
 ### Swapping in real 3D assets
 
 Each gadget's `makeMesh()` returns any `THREE.Object3D`. Replace the placeholder geometry with a loaded GLTF (scaled to fit the footprint, origin at the cell center + `offset`) and nothing else needs to change. `makeBody()` stays as the simple collision shape. Sounds play on impacts (tap / thud / boing by what hit what) and on winning.
+
+## Native app (Capacitor)
+
+The same files ship as an iOS / Android app through [Capacitor](https://capacitorjs.com).
+`tools/build-www.cjs` copies the runtime files into `www/` (gitignored), and
+`npx cap sync` puts them into the native projects in `ios/` and `android/`.
+
+```sh
+npm install          # once
+npm run ios          # copy, sync, open Xcode, then press Run
+npm run android      # same for Android Studio (needs Android Studio's Java)
+npm run sync         # copy + sync both, without opening anything
+```
+
+Run `npm run sync` again after changing the game, before building the app.
+App id: `com.levellab.clatterlab` (in `capacitor.config.json`).

@@ -3,6 +3,16 @@
    1px borders, 5px / 10px radii, colour-only transitions. The board itself
    keeps its own sky and ground colours. */
 
+/* Roboto, bundled so the native app works offline. One variable-weight file
+   covers 300 and 700 (Latin only; other scripts fall back to sans-serif). */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: fallback;
+  src: url(../assets/fonts/roboto-latin.woff2) format('woff2');
+}
+
 :root {
   /* Core palette (fixed) */
   --color-accent: #0077ff;
@@ -214,16 +224,19 @@ select:focus { outline: none; border-color: var(--color-accent); }
   display: grid;
   grid-template-rows: auto 1fr auto;
   grid-template-columns: minmax(0, 1fr); /* let the tray scroll instead of widening the page */
+  /* Keep clear of the notch and home bar (the app, and Safari with viewport-fit=cover).
+     The top inset goes on #topbar so its colour runs up behind the notch. */
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 #topbar {
   position: relative;
-  height: var(--height-header);
+  height: calc(var(--height-header) + env(safe-area-inset-top));
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: 0 var(--space-2);
+  padding: env(safe-area-inset-top) var(--space-2) 0;
   background: var(--color-surface);
   border-bottom: var(--border-width) var(--border-style) var(--color-border);
 }
@@ -233,7 +246,7 @@ select:focus { outline: none; border-color: var(--color-accent); }
 #brand {
   position: absolute;
   left: 50%;
-  top: 50%;
+  top: calc(50% + env(safe-area-inset-top) / 2);
   transform: translate(-50%, -50%);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-dark);

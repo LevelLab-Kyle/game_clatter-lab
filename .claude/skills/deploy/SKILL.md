@@ -36,6 +36,7 @@ Runtime files only:
 | `index.html` | `.git/`, `.claude/`, `.gitignore` |
 | `src/*.js`, `src/style.css` | `README.md`, `assets/README.md`, `assets/pack.py` |
 | `assets/*.js` (embedded sounds) | anything else |
+| `assets/fonts/*.woff2` (bundled Roboto) | `ios/`, `android/`, `www/`, `node_modules/`, `package*.json`, `capacitor.config.json` |
 | `vendor/libs.js` | |
 
 ## 3. Upload
@@ -59,7 +60,7 @@ git archive HEAD index.html src assets vendor | tar -x -C "$STAGE"
 sed -i '' "s/__VERSION__/$VERSION/g" "$STAGE/index.html"
 grep -c "?v=$VERSION" "$STAGE/index.html"   # expect 7 (stylesheet + 6 scripts)
 FILTER=(--include='index.html' --include='src/' --include='src/*.js' --include='src/style.css'
-        --include='assets/' --include='assets/*.js' --include='vendor/' --include='vendor/libs.js'
+        --include='assets/' --include='assets/*.js' --include='assets/fonts/' --include='assets/fonts/*.woff2' --include='vendor/' --include='vendor/libs.js'
         --exclude='*')
 # See what would change
 rsync -rlvz --delete-after --omit-dir-times --dry-run --itemize-changes "${FILTER[@]}" "$STAGE/" "$REMOTE/" | grep -vE '^(sending|sent |total )'
@@ -79,7 +80,7 @@ ssh levellab 'ls -la ~/www/studio/clatter-lab && ls ~/www/studio/clatter-lab/src
 ```
 
 Expect `index.html`, `src/` (main.js, gadgets.js, examples.js, levels.js,
-style.css), `assets/sounds.js`, `vendor/libs.js` and nothing else. Then check
+style.css), `assets/sounds.js`, `assets/fonts/roboto-latin.woff2`, `vendor/libs.js` and nothing else. Then check
 the live page (https://studio.levellab.com/clatter-lab/) returns `200` and carries
 this commit's cache buster:
 

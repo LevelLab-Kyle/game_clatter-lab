@@ -1,0 +1,13 @@
+{
+  "appId": "com.levellab.clatterlab",
+  "appName": "Clatter Lab",
+  "webDir": "www",
+  "backgroundColor": "#1a1a1a",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#1a1a1a"
+  },
+  "android": {
+    "backgroundColor": "#1a1a1a"
+  }
+}

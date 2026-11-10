@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Clatter Lab</string>
+    <string name="title_activity_main">Clatter Lab</string>
+    <string name="package_name">com.levellab.clatterlab</string>
+    <string name="custom_url_scheme">com.levellab.clatterlab</string>
+</resources>
