@@ -458,8 +458,13 @@ function armAudio() {
   if (audio && audio.state !== 'running') audio.resume().catch(() => {});
 }
 
+// Sound effects can be turned off in the menu; remembered per browser.
+const SOUND_KEY = 'clatter-lab.sound';
+let soundOn = true;
+try { soundOn = localStorage.getItem(SOUND_KEY) !== 'off'; } catch {}
+
 function playSound(key, volume = 1) {
-  if (!audioArmed || !sounds[key]) return;
+  if (!audioArmed || !soundOn || !sounds[key]) return;
   const src = audio.createBufferSource();
   src.buffer = sounds[key];
   const gain = audio.createGain();
@@ -842,6 +847,8 @@ canvas.addEventListener('wheel', (ev) => {
 }, { passive: false });
 
 window.addEventListener('keydown', (ev) => {
+  if (menuOpen) { if (ev.key === 'Escape') closeMenu(); return; }
+  if (!picker.hidden) { if (ev.key === 'Escape') closePicker(); return; }
   if (ev.key === 'r' || ev.key === 'R') rotateSelected(ev.shiftKey ? 1 : -1); // clockwise; Shift goes back
   if (ev.key === 's' || ev.key === 'S') resizeSelected(ev.shiftKey ? -1 : 1);
   if (ev.key === 'f' || ev.key === 'F') flipSelected();
@@ -1187,20 +1194,50 @@ btnHome.onclick = homeView;
 // The lock (on by default) stops panning and scrolling up and down; left
 // and right still work. Remembered per browser.
 const LOCK_KEY = 'clatter-lab.lock-y';
-const btnLock = document.getElementById('btn-lock');
+const setLockSwitch = document.getElementById('set-lock');
 let lockY = true;
 try { lockY = localStorage.getItem(LOCK_KEY) !== 'off'; } catch {}
-function showLock() {
-  btnLock.classList.toggle('on', lockY);
-  btnLock.setAttribute('aria-pressed', String(lockY));
-  btnLock.title = lockY ? 'Up/down scrolling is locked (click to unlock)' : 'Up/down scrolling is unlocked (click to lock)';
-}
-btnLock.onclick = () => {
+function showLock() { setLockSwitch.setAttribute('aria-checked', String(lockY)); }
+setLockSwitch.onclick = () => {
   lockY = !lockY;
   try { localStorage.setItem(LOCK_KEY, lockY ? 'on' : 'off'); } catch {}
   showLock();
 };
 showLock();
+
+// The menu slides in from the right. Escape, ✕ or a tap beside the panel
+// closes it. Nothing else on the page takes keys while it's open.
+const menu = document.getElementById('menu');
+const btnMenu = document.getElementById('btn-menu');
+const menuPanel = document.getElementById('menu-panel');
+let menuOpen = false;
+function openMenu() {
+  if (playing) stopPlay();
+  select(null);
+  menuOpen = true;
+  menu.classList.add('open');
+  btnMenu.setAttribute('aria-expanded', 'true');
+  menuPanel.focus(); // keys go to the menu, not the game
+}
+function closeMenu() {
+  if (!menuOpen) return;
+  menuOpen = false;
+  menu.classList.remove('open');
+  btnMenu.setAttribute('aria-expanded', 'false');
+  btnMenu.focus();
+}
+btnMenu.onclick = openMenu;
+document.getElementById('menu-close').onclick = closeMenu;
+document.getElementById('menu-backdrop').onclick = closeMenu;
+
+const setSoundSwitch = document.getElementById('set-sound');
+function showSound() { setSoundSwitch.setAttribute('aria-checked', String(soundOn)); }
+setSoundSwitch.onclick = () => {
+  soundOn = !soundOn;
+  try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch {}
+  showSound();
+};
+showSound();
 
 // Tray pictures are rendered from each gadget's own model (a small 3/4 view),
 // so they always match the board. A gadget can supply `image` (a URL) instead.
@@ -1581,7 +1618,9 @@ function fitBrand() {
   const brand = document.getElementById('brand');
   const left = document.querySelector(currentLevel() ? '.level-info' : '.examples');
   const bar = document.getElementById('topbar').getBoundingClientRect();
-  const right = document.getElementById('modes').getBoundingClientRect();
+  // Share (if showing) and Menu
+  const right = Math.min(...[...document.querySelectorAll('#btn-share:not([hidden]), #btn-menu')]
+    .map((button) => button.getBoundingClientRect().left));
   left.style.flex = '0 0 auto';
   left.style.width = 'max-content';
   const leftW = left.getBoundingClientRect().width;
@@ -1589,11 +1628,13 @@ function fitBrand() {
   const pad = parseFloat(getComputedStyle(document.getElementById('topbar')).paddingLeft);
   const b = brand.getBoundingClientRect();
   const GAP = 20;
-  brand.classList.toggle('no-room', b.left - GAP < bar.left + pad + leftW || b.right + GAP > right.left);
+  brand.classList.toggle('no-room', b.left - GAP < bar.left + pad + leftW || b.right + GAP > right);
 }
 window.addEventListener('resize', fitBrand);
 document.fonts?.ready.then(fitBrand); // text widths change once Roboto loads
 
+// Levels / Sandbox, in the menu. The menu stays open: the board switches
+// behind it.
 document.getElementById('mode-levels').onclick = () => { if (mode !== 'levels') loadLevel(levelIndex); };
 document.getElementById('mode-sandbox').onclick = enterSandbox;
 
@@ -1857,6 +1898,8 @@ function openPicker() {
   picker.hidden = false;
 }
 function closePicker() { picker.hidden = true; }
+// Like the menu, it covers the whole screen and takes the keys: Escape
+// closes it, and nothing else reaches the game.
 document.getElementById('btn-levels').onclick = openPicker;
 document.getElementById('picker-close').onclick = closePicker;
 picker.addEventListener('pointerdown', (ev) => { if (ev.target === picker) closePicker(); });

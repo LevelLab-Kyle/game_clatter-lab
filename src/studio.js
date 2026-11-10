@@ -35,7 +35,8 @@ let cloudReady = false; // signed in, and the cloud copy merged in
 let pushTimer = null;
 let toastTimer = null;
 
-const btnAccount = document.getElementById('btn-account');
+const menuAccount = document.getElementById('menu-account');
+const accountButton = document.getElementById('account-button');
 const btnShare = document.getElementById('btn-share');
 const cloudCard = document.getElementById('cloud-card');
 
@@ -166,12 +167,24 @@ cloudCard.addEventListener('pointerdown', (ev) => ev.stopPropagation());
 // ---------------------------------------------------------------------------
 // Signing in and out
 
+// The Account part of the menu (main.js opens and closes it).
 function showAccount() {
   const user = studio?.user;
-  btnAccount.classList.toggle('on', !!user);
-  btnAccount.title = user ? 'Signed In' : 'Sign In';
-  btnAccount.setAttribute('aria-label', btnAccount.title);
+  // Signed in, whose account it is; signed out, just the reason to sign in.
+  const title = document.getElementById('account-title');
+  title.textContent = user ? user.email : '';
+  title.hidden = !user;
+  document.getElementById('account-text').textContent = user
+    ? 'Your levels and boards are saved. You can play on any computer.'
+    : 'Sign in to save your work. Then you can play on any computer.';
+  accountButton.textContent = user ? 'Sign Out' : 'Sign In';
+  accountButton.classList.toggle('button-accent', !user);
 }
+accountButton.onclick = () => {
+  closeMenu();
+  if (studio.user) signOut();
+  else signIn();
+};
 
 // Level Lab's sign-in shows over the game; the game never leaves.
 function signIn() {
@@ -180,25 +193,6 @@ function signIn() {
     showNote('Could not reach Level Lab. Try again.');
   });
 }
-
-btnAccount.onclick = () => {
-  if (studio.user) {
-    showCard({
-      title: 'You are signed in',
-      text: 'Your levels and boards are saved. You can play on any computer.',
-      yes: 'Sign Out',
-      no: 'Close',
-      onYes: signOut,
-    });
-  } else {
-    showCard({
-      title: 'Sign In',
-      text: 'Sign in to save your work. Then you can play on any computer.',
-      yes: 'Sign In',
-      onYes: signIn,
-    });
-  }
-};
 
 // Signing out saves anything not sent yet, then starts this computer
 // fresh, so the next player never sees or inherits this one's work. If the
@@ -329,7 +323,7 @@ async function openSharedBoard(shareId) {
 
 // ---------------------------------------------------------------------------
 // Start: load Level Lab's client from the chosen site, then sign in quietly.
-// The buttons only show once Level Lab answers.
+// Share and the Account part of the menu only show once Level Lab answers.
 
 (function startStudio() {
   const params = new URLSearchParams(location.search);
@@ -350,7 +344,7 @@ async function openSharedBoard(shareId) {
     if (shareId) openSharedBoard(shareId);
     studio = await StudioClient.connect(STUDIO_APP);
     showAccount();
-    btnAccount.hidden = false;
+    menuAccount.hidden = false;
     btnShare.hidden = false;
     fitBrand();
     studio.onChange(() => {

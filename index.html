@@ -22,7 +22,7 @@
     <div id="app">
       <header id="topbar">
         <div class="level-info">
-          <button id="btn-levels" class="button" title="Pick a Level">☰</button>
+          <button id="btn-levels" class="button" title="Pick a Level" aria-label="Pick a Level"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="4" height="4" rx="0.75"/><rect x="9.5" y="2.5" width="4" height="4" rx="0.75"/><rect x="2.5" y="9.5" width="4" height="4" rx="0.75"/><rect x="9.5" y="9.5" width="4" height="4" rx="0.75"/></svg></button>
           <span id="level-title" class="level-title"></span>
         </div>
         <div class="examples">
@@ -30,12 +30,8 @@
           <select id="examples"></select>
         </div>
         <div id="brand" aria-hidden="true">Clatter Lab</div>
-        <nav id="modes" class="modes">
-          <button id="mode-levels" class="mode" data-mode="levels">Levels</button>
-          <button id="mode-sandbox" class="mode" data-mode="sandbox">Sandbox</button>
-        </nav>
         <button id="btn-share" class="button-icon" title="Share Your Board" aria-label="Share" hidden><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 10V2"/><path d="M5 5l3-3 3 3"/><path d="M3.5 8.5v5h9v-5"/></svg></button>
-        <button id="btn-account" class="button-icon" title="Sign In" aria-label="Sign In" hidden><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5.5" r="2.75"/><path d="M2.75 14a5.25 5.25 0 0 1 10.5 0"/></svg></button>
+        <button id="btn-menu" class="button" title="Menu" aria-expanded="false" aria-controls="menu-panel"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg>Menu</button>
       </header>
 
       <div id="stage">
@@ -43,7 +39,6 @@
         <div id="loader" role="status"><div class="spinner"></div>Loading…</div>
         <div id="view-tools">
           <button id="btn-home" class="button-icon" title="Fit Everything on Screen (H)" aria-label="Home"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5L8 2.5l6 5"/><path d="M3.5 6.5V13.5h9V6.5"/><path d="M6.5 13.5v-4h3v4"/></svg></button>
-          <button id="btn-lock" class="button-icon on" title="Up/down scrolling is locked (click to unlock)" aria-label="Lock Up and Down Scrolling" aria-pressed="true"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1"/><path class="shackle" d="M5 7V5a3 3 0 0 1 6 0v2"/></svg></button>
           <button id="btn-clear" class="button-icon" title="Clear the Board" aria-label="Clear"><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h11"/><path d="M6 4V2.5h4V4"/><path d="M4 4l.75 9.5h6.5L12 4"/><path d="M6.75 6.5v4.5M9.25 6.5v4.5"/></svg></button>
           <button id="btn-hint" class="button-icon" title="What do I do? (show the hint)" aria-label="Show the Hint">?</button>
           <div id="clear-confirm" class="card" hidden>
@@ -94,15 +89,6 @@
             <button id="win-next" class="button button-accent"></button>
           </div>
         </div>
-        <div id="level-picker" hidden>
-          <div class="picker-panel card">
-            <div class="picker-head">
-              <div class="title">Levels</div>
-              <button id="picker-close" class="button-icon" title="Close">✕</button>
-            </div>
-            <div id="level-grid"></div>
-          </div>
-        </div>
       </div>
 
       <footer id="tray">
@@ -112,6 +98,45 @@
           <button id="tray-next" class="button-icon" title="More Gadgets">›</button>
         </div>
       </footer>
+      <!-- The level picker covers the whole screen, like the menu. -->
+      <div id="level-picker" role="dialog" aria-modal="true" aria-label="Levels" hidden>
+        <div class="picker-panel card">
+          <div class="picker-head">
+            <div class="title">Levels</div>
+            <button id="picker-close" class="button-icon" title="Close">✕</button>
+          </div>
+          <div id="level-grid"></div>
+        </div>
+      </div>
+      <!-- The menu: slides in from the right (main.js). The Account part
+           shows only once Level Lab answers (studio.js). -->
+      <div id="menu">
+        <div id="menu-backdrop"></div>
+        <aside id="menu-panel" role="dialog" aria-modal="true" aria-labelledby="menu-title" tabindex="-1">
+          <div class="menu-head">
+            <div id="menu-title" class="title">Menu</div>
+            <button id="menu-close" class="button-icon" title="Close" aria-label="Close">✕</button>
+          </div>
+          <section id="menu-account" class="menu-section" hidden>
+            <div class="menu-label">Account</div>
+            <div id="account-title" class="menu-name"></div>
+            <div id="account-text" class="muted"></div>
+            <button id="account-button" class="button"></button>
+          </section>
+          <section class="menu-section">
+            <div class="menu-label">Play</div>
+            <nav id="modes" class="modes">
+              <button id="mode-levels" class="mode" data-mode="levels">Levels</button>
+              <button id="mode-sandbox" class="mode" data-mode="sandbox">Sandbox</button>
+            </nav>
+          </section>
+          <section class="menu-section">
+            <div class="menu-label">Game</div>
+            <button id="set-sound" class="menu-row" role="switch" aria-checked="true"><span>Sound Effects</span><span class="switch" aria-hidden="true"></span></button>
+            <button id="set-lock" class="menu-row" role="switch" aria-checked="true"><span>Lock Up and Down</span><span class="switch" aria-hidden="true"></span></button>
+          </section>
+        </aside>
+      </div>
     </div>
     <script src="vendor/libs.js?v=__VERSION__"></script>
     <script src="assets/sounds.js?v=__VERSION__"></script>
