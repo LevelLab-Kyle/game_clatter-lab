@@ -48,6 +48,7 @@ On the website, Clatter Lab uses [Level Lab Studio](../../platform/docs/STUDIO.m
 
 - **Sign In** (person icon) opens Level Lab's sign-in over the game; the game stays put. It's the same account as Level Lab. If Level Lab can't be reached, a note says so. Signed in, the levels you've beaten, the parts you placed in each level and the Sandbox board are saved to your account and follow you to any computer. Levels beaten add up across computers; for boards, the copy changed last wins. The view and the scroll lock stay on each computer.
 - **Share** (Sandbox only) saves a copy of the board and copies a link to it. The link opens that board in anyone's Sandbox, signed in or not, and Undo brings back the board they had. Sharing needs you to sign in. Each share is its own copy; past 100, the oldest one is removed.
+- On a shared computer, the browser save remembers whose it is. A guest's progress joins the first account that signs in; another player's never does: signing in swaps it for that player's own. Signing out saves anything not sent yet, then starts the computer fresh for the next player. If someone is already signed in to Level Lab in that browser, the sign-in asks "Are you …?" first.
 - Guests, the phone app and copies opened from disk play exactly as before, with the browser save.
 
 Which Level Lab it talks to comes from `?studio=` in the address: release (levellab.com) by default, or `?studio=dev` / `?studio=stage` for testing (sign in to that test site in the same browser first). Sign-in only works on studio.levellab.com.

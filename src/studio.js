@@ -9,9 +9,13 @@
 // - Guests, the phone app and pages opened from disk keep playing with the
 //   browser save in main.js. Nothing here is needed to play.
 //
+// - On a shared computer (a classroom), local progress remembers whose it
+//   is. A guest's progress joins the first account that signs in; another
+//   player's never does: signing in swaps it for theirs.
+//
 // Level Lab's site, and so its API, comes from ?studio= (release by
 // default; ?studio=dev or ?studio=stage for testing). The choice rides along
-// in sign-in returns and share links.
+// in share links.
 
 const STUDIO_APP = 'clatter-lab';
 const STUDIO_SITES = {
@@ -19,8 +23,9 @@ const STUDIO_SITES = {
   stage: 'https://stage.levellab.com',
   dev: 'https://dev.levellab.com',
 };
-// When the progress below last changed, and what it was (main.js's save is
-// rewritten on every view move, so changes are found by comparing).
+// When the progress below last changed, what it was (main.js's save is
+// rewritten on every view move, so changes are found by comparing), and
+// whose it is (the account id; null for a guest's).
 const CLOUD_KEY = 'clatter-lab.cloud.v1';
 const CLOUD_PUSH_MS = 2000;
 const TOAST_MS = 3000;
@@ -61,53 +66,77 @@ function cloudSaved() {
   // The first look is a starting point, not a change (time 0): a device
   // opening this version with an old save must not beat a newer cloud copy.
   const savedAt = last ? Date.now() : 0;
-  try { localStorage.setItem(CLOUD_KEY, JSON.stringify({ savedAt, json })); } catch {}
+  writeCloud({ savedAt, json, owner: last?.owner || null });
   if (cloudReady) {
     clearTimeout(pushTimer);
     pushTimer = setTimeout(pushProgress, CLOUD_PUSH_MS);
   }
 }
 
+function writeCloud(cloud) {
+  try { localStorage.setItem(CLOUD_KEY, JSON.stringify(cloud)); } catch {}
+}
+
+// Returns whether the account now has this device's progress.
 async function pushProgress() {
   pushTimer = null;
-  if (!cloudReady) return;
+  if (!cloudReady) return false;
   const savedAt = readJson(CLOUD_KEY)?.savedAt || Date.now();
   try {
     await studio.saveProgress({ v: 1, savedAt, ...localProgress() });
+    return true;
   } catch (error) {
     console.warn(`Could not save progress to Level Lab: ${error.message}`);
+    return false;
   }
 }
 
-// Fold the cloud copy into this device's: levels beaten add up; for boards,
-// whichever copy changed last wins. The open board reloads only if the
-// player hasn't touched it yet.
-function mergeProgress(remote) {
-  const localAt = readJson(CLOUD_KEY)?.savedAt || 0;
-  const remoteNewer = (remote.savedAt || 0) > localAt;
+// Fold the account's copy into this device's: levels beaten add up; for
+// boards, whichever copy changed last wins. The open board reloads only if
+// the player hasn't touched it yet. Progress that belongs to another
+// account is swapped out instead, so it never joins this one.
+function mergeProgress(remote, userId) {
+  const cloud = readJson(CLOUD_KEY);
+  const someoneElse = !!cloud?.owner && cloud.owner !== userId;
+  if (someoneElse) {
+    levelsDone.clear();
+    for (const name of Object.keys(levelBoards)) delete levelBoards[name];
+    try { localStorage.removeItem(SAVE_KEY); } catch {}
+  }
+  if (!someoneElse && !remote) {
+    // Nothing in the account yet: this device's progress becomes its first copy.
+    writeCloud({ ...(cloud || { savedAt: 0, json: '' }), owner: userId });
+    return;
+  }
+  remote = remote || {};
+  const remoteNewer = someoneElse || (remote.savedAt || 0) > (cloud?.savedAt || 0);
   (remote.done || []).forEach((name) => levelsDone.add(name));
   for (const [name, board] of Object.entries(remote.boards || {})) {
     if (remoteNewer || !levelBoards[name]) levelBoards[name] = board;
   }
-  const local = readJson(SAVE_KEY);
-  const takeSandbox = remote.sandbox && (remoteNewer || !local);
+  const takeSandbox = remote.sandbox && (remoteNewer || !readJson(SAVE_KEY));
   if (takeSandbox) {
-    // The cloud board, with no saved view: Home fits it.
+    // The account's board, with no saved view: Home fits it.
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(remote.sandbox)); } catch {}
   }
 
-  const untouched = !history.undo.length && !playing;
+  // Another player's board never stays up, touched or not.
+  const reload = someoneElse || (!history.undo.length && !playing);
   clearTimeout(saveTimer); // the pending save would keep the old board
   saveTimer = null;
-  if (untouched && currentLevel()) {
-    loadLevel(levelIndex);
-  } else if (untouched && takeSandbox) {
+  if (reload && playing) stopPlay();
+  if (reload && currentLevel()) {
+    let n = levelIndex;
+    while (n > 0 && !levelOpen(n)) n--; // a level this player has opened
+    loadLevel(n);
+  } else if (reload && (takeSandbox || someoneElse)) {
     clearBoard();
-    loadProgress();
+    if (!loadProgress()) loadExample('Domino Run');
     resetHistory();
     homeView();
   }
   saveProgress();
+  writeCloud({ ...(readJson(CLOUD_KEY) || { savedAt: 0, json: '' }), owner: userId });
 }
 
 // ---------------------------------------------------------------------------
@@ -159,7 +188,7 @@ btnAccount.onclick = () => {
       text: 'Your levels and boards are saved. You can play on any computer.',
       yes: 'Sign Out',
       no: 'Close',
-      onYes: () => studio.signOut(),
+      onYes: signOut,
     });
   } else {
     showCard({
@@ -171,10 +200,40 @@ btnAccount.onclick = () => {
   }
 };
 
+// Signing out saves anything not sent yet, then starts this computer
+// fresh, so the next player never sees or inherits this one's work. If the
+// save fails, nothing is signed out or cleared.
+async function signOut() {
+  clearTimeout(pushTimer);
+  if (cloudReady && !(await pushProgress())) {
+    showNote('Could not save your work. Try again.');
+    return;
+  }
+  cloudReady = false;
+  await studio.signOut();
+  try { [LEVELS_KEY, SAVE_KEY, CLOUD_KEY].forEach((key) => localStorage.removeItem(key)); } catch {}
+  levelsDone.clear();
+  for (const name of Object.keys(levelBoards)) delete levelBoards[name];
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  if (playing) stopPlay();
+  if (currentLevel()) {
+    loadLevel(0);
+  } else {
+    clearBoard();
+    loadExample('Domino Run');
+    resetHistory();
+    homeView();
+  }
+  showNote('Signed out. Your work is saved.');
+}
+
 async function onSignedIn() {
+  const userId = studio.user.id;
   try {
     const remote = await studio.loadProgress();
-    if (remote && remote.v === 1) mergeProgress(remote);
+    if (studio.user?.id !== userId) return; // signed out or switched meanwhile
+    mergeProgress(remote?.v === 1 ? remote : null, userId);
     cloudReady = true;
     await pushProgress();
   } catch (error) {
