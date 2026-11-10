@@ -107,6 +107,12 @@ if (!only) {
   }
 }
 
+// Every level belongs to a world: the first one must start one.
+if (!only && LEVELS.length && !LEVELS[0].world) {
+  failed++;
+  console.log('FAIL  worlds   the first level must name its world');
+}
+
 LEVELS.forEach((lv, n) => {
   if (only && only !== n + 1) return;
   const problems = [];

@@ -582,13 +582,36 @@ body.loading #loader { display: flex; }
   padding: var(--space-4);
   gap: var(--space-3);
 }
-.picker-head { display: flex; align-items: center; justify-content: space-between; }
-#level-grid {
+/* ‹ World 1: Getting Started › centered on the panel, ✕ at the far right
+   (room is kept for it on both sides, so the title never runs under it) */
+.picker-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--height-input);
+}
+#picker-close { position: absolute; right: 0; }
+#world-title { flex: 0 1 auto; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#world-prev { margin-left: auto; }
+#world-next { margin-right: auto; }
+#world-prev, #world-next { font-size: var(--font-size-xl); }
+/* Every world's page sits in the same spot; only the open one shows, so the
+   panel keeps one size. */
+#level-grid { display: grid; overflow-y: auto; }
+.world-page {
+  grid-area: 1 / 1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  align-content: start;
   gap: var(--space-2);
-  overflow-y: auto;
+  visibility: hidden;
 }
+.world-page.on { visibility: visible; }
+/* Which world is open, out of how many */
+#world-dots { display: flex; justify-content: center; gap: var(--space-1); }
+#world-dots .dot { width: var(--space-2); height: var(--space-2); border-radius: 50%; background: var(--color-border-light); }
+#world-dots .dot.on { background: var(--color-accent); }
 .level-tile {
   position: relative;
   padding: var(--space-2);

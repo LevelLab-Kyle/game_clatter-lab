@@ -102,10 +102,13 @@
       <div id="level-picker" role="dialog" aria-modal="true" aria-label="Levels" hidden>
         <div class="picker-panel card">
           <div class="picker-head">
-            <div class="title">Levels</div>
-            <button id="picker-close" class="button-icon" title="Close">✕</button>
+            <button id="world-prev" class="button-icon" title="Previous World" aria-label="Previous World">‹</button>
+            <div id="world-title" class="title" aria-live="polite"></div>
+            <button id="world-next" class="button-icon" title="Next World" aria-label="Next World">›</button>
+            <button id="picker-close" class="button-icon" title="Close" aria-label="Close">✕</button>
           </div>
           <div id="level-grid"></div>
+          <div id="world-dots" aria-hidden="true"></div>
         </div>
       </div>
       <!-- The menu: slides in from the right (main.js). The Account part

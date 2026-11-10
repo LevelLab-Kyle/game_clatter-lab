@@ -4,12 +4,12 @@ Prototype of a kids' Rube Goldberg game. Drag gadgets onto a voxel board, press 
 
 Two modes, switched in the menu (**☰ Menu** at the right of the top bar):
 
-- **Levels**: puzzles that get harder as you go. Each level comes with locked pieces already on the board and a few parts in the tray (the number on each card is how many are left). Get anything to the ⭐ to win and unlock the next level. Each new gadget arrives in its own level, marked NEW in the tray. The grid button (four squares) left of the level name opens the level picker.
+- **Levels**: puzzles that get harder as you go. Each level comes with locked pieces already on the board and a few parts in the tray (the number on each card is how many are left). Get anything to the ⭐ to win and unlock the next level. Each new gadget arrives in its own level, marked NEW in the tray. Levels come in worlds: **1 Getting Started** (1-1 to 1-6: ramp, block, domino, plank), **2 New Gadgets** (2-1 to 2-8: one new gadget each) and **3 Put It Together** (3-1 to 3-11: gadgets combined). A level's number is its world, then its place in that world ("2-3"). The grid button (four squares) left of the level name opens the level picker on the current world; ‹ › (or ← →) switch worlds. Beating a world's last level opens the next world.
 - **Sandbox**: every gadget, no limits, plus the Examples menu.
 
 A hint card floats over the top of the board: the level's goal in Levels, or what the Sandbox is for. A tap anywhere on it (or its ✕, or Play) closes it; the **?** button by Home brings it back.
 
-Level 1 is always a guided tour: its solution shows as a see-through ramp, and a blue bubble points at each next step — the ramp in the tray, the see-through spot, then ▶ (or Stop, after a miss). Any level can do this with `tour: true` in `src/levels.js`.
+Level 1-1 is always a guided tour: its solution shows as a see-through ramp, and a blue bubble points at each next step — the ramp in the tray, the see-through spot, then ▶ (or Stop, after a miss). Any level can do this with `tour: true` in `src/levels.js`.
 
 ## Run
 
@@ -90,7 +90,7 @@ The **Examples** menu in the top bar loads ready-made contraptions (Domino Run, 
 | `src/gadgets.js` | Gadget registry (code still says "gadget"). Each gadget has `makeMesh()` (looks), `makeBody()` (physics), a footprint box (`w`,`h`, multiples of ¼; an optional `footprint()` lists just the quarter cells it really fills) and an `offset` inside that box. Multi-part gadgets (seesaw, fan, pendulum) use `makeBodies(group)` to return several bodies plus constraints, and optional `onStep` / `onFrame` hooks. |
 | `src/main.js` | Scene, cameras, board state, drag/drop, play loop, sounds, Levels / Sandbox modes. |
 | `src/studio.js` | Level Lab sign-in, saving progress to the account, and share links (Studio). Loaded after `main.js`; `main.js` calls its `cloudSaved()` after each save. |
-| `src/levels.js` | The levels, easiest first: name, goal line, parts on offer, locked pieces, and one known solution (used only by the checker). |
+| `src/levels.js` | The levels, easiest first: name, goal line, parts on offer, locked pieces, and one known solution (used only by the checker). The first level of each world names it (`world:`); the levels after it belong to it, up to the next one that names a world. |
 | `src/examples.js` | Sandbox examples. |
 | `tools/check-levels.cjs` | Plays every level and example in Node with the game's own physics (`buildWorld` in `src/gadgets.js`). A level passes when its solution reaches the star and its locked pieces alone don't. `node tools/check-levels.cjs [level] [--trace / --free]`. |
 | `assets/sounds.js` | Four short sound effects, base64-embedded (see `assets/README.md`). |

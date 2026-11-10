@@ -1,4 +1,6 @@
-// Levels, easiest first. Each one has:
+// Levels, easiest first, in worlds. Each one has:
+//   world     on the first level of each world only: the world's name. The
+//             levels after it, up to the next one with a world, belong to it
 //   name      short title
 //   goal      one line telling the player what to do; {rotate}, {size} and
 //             {flip} show that button's icon from the gadget's menu
@@ -16,6 +18,7 @@
 
 const LEVELS = [
   {
+    world: 'Getting Started',
     name: 'First Drop',
     goal: 'The marble falls down. Drag a ramp under it. Then it will roll to the star.',
     parts: { ramp: 1 },
@@ -80,6 +83,7 @@ const LEVELS = [
     solution: [['plank', 3, 1.75]],
   },
   {
+    world: 'New Gadgets',
     name: 'Boing',
     goal: 'The star is up high. Put a bouncer where the marble lands.',
     parts: { bouncer: 1 },
@@ -160,6 +164,7 @@ const LEVELS = [
     solution: [['bell', 4, 2]],
   },
   {
+    world: 'Put It Together',
     name: 'Ramp Run',
     goal: 'Get the marble rolling. Then fill the gaps so the dominoes reach the star.',
     parts: { ramp: 1, domino: 2 },

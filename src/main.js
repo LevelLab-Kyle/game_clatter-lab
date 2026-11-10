@@ -848,7 +848,12 @@ canvas.addEventListener('wheel', (ev) => {
 
 window.addEventListener('keydown', (ev) => {
   if (menuOpen) { if (ev.key === 'Escape') closeMenu(); return; }
-  if (!picker.hidden) { if (ev.key === 'Escape') closePicker(); return; }
+  if (!picker.hidden) {
+    if (ev.key === 'Escape') closePicker();
+    if (ev.key === 'ArrowLeft') showWorld(pickerWorld - 1);
+    if (ev.key === 'ArrowRight') showWorld(pickerWorld + 1);
+    return;
+  }
   if (ev.key === 'r' || ev.key === 'R') rotateSelected(ev.shiftKey ? 1 : -1); // clockwise; Shift goes back
   if (ev.key === 's' || ev.key === 'S') resizeSelected(ev.shiftKey ? -1 : 1);
   if (ev.key === 'f' || ev.key === 'F') flipSelected();
@@ -1528,6 +1533,17 @@ const levelBoards = {}; // level name -> the player's parts, as snapshot() entri
 const currentLevel = () => (mode === 'levels' ? LEVELS[levelIndex] : null);
 const levelOpen = (n) => n === 0 || levelsDone.has(LEVELS[n - 1].name) || levelsDone.has(LEVELS[n].name);
 
+// Worlds: each starts at a level that names one (levels.js) and runs to the
+// next. A level's number counts within its world: "2-3" is world 2, level 3.
+const WORLDS = [];
+LEVELS.forEach((level, n) => {
+  if (level.world || !WORLDS.length) WORLDS.push({ name: level.world || '', first: n, count: 0 });
+  WORLDS[WORLDS.length - 1].count++;
+});
+const worldOf = (n) => WORLDS.findLastIndex((world) => world.first <= n);
+const levelNumber = (n) => `${worldOf(n) + 1}-${n - WORLDS[worldOf(n)].first + 1}`;
+const worldTitle = (w) => `World ${w + 1}: ${WORLDS[w].name}`;
+
 // The gadget a level brings in: the first level whose parts include it.
 function newGadgetOf(n) {
   const seen = new Set();
@@ -1607,7 +1623,7 @@ function showMode() {
   document.body.classList.toggle('mode-sandbox', !level);
   document.getElementById('mode-levels').classList.toggle('on', !!level);
   document.getElementById('mode-sandbox').classList.toggle('on', !level);
-  document.getElementById('level-title').textContent = level ? `${levelIndex + 1}. ${level.name}` : '';
+  document.getElementById('level-title').textContent = level ? `${levelNumber(levelIndex)} ${level.name}` : '';
   buildTray();
   fitBrand();
   showTourGhosts();
@@ -1678,7 +1694,7 @@ function setTextWithIcons(el, text) {
 
 function showHint() {
   const level = currentLevel();
-  document.getElementById('hint-title').textContent = level ? `Level ${levelIndex + 1}: ${level.name}` : 'Sandbox';
+  document.getElementById('hint-title').textContent = level ? `Level ${levelNumber(levelIndex)}: ${level.name}` : 'Sandbox';
   setTextWithIcons(document.getElementById('hint-text'), level
     ? level.goal
     : 'Use any part you like. Build anything! Need ideas? Try Examples at the top.');
@@ -1880,8 +1896,27 @@ function updateCoach(dt) {
 const picker = document.getElementById('level-picker');
 const levelGrid = document.getElementById('level-grid');
 
+const worldPrev = document.getElementById('world-prev');
+const worldNext = document.getElementById('world-next');
+const worldDots = document.getElementById('world-dots');
+let pickerWorld = 0;
+
+// One world's levels at a time, with ‹ › (or the arrow keys) to the others.
+// Every world's page is drawn, stacked in one spot, so the panel stays the
+// size of the biggest and doesn't jump between worlds.
 function openPicker() {
   levelGrid.replaceChildren();
+  worldDots.replaceChildren();
+  const pages = WORLDS.map(() => {
+    const page = document.createElement('div');
+    page.className = 'world-page';
+    levelGrid.appendChild(page);
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    worldDots.appendChild(dot);
+    return page;
+  });
+  worldDots.hidden = WORLDS.length < 2;
   LEVELS.forEach((level, n) => {
     const tile = document.createElement('button');
     tile.className = 'level-tile';
@@ -1891,18 +1926,29 @@ function openPicker() {
     tile.disabled = !levelOpen(n);
     const gadget = newGadgetOf(n);
     tile.title = level.name + (gadget ? ` (New: ${GADGETS[gadget].name})` : '');
-    tile.innerHTML = `<div class="num">${n + 1}</div>`
+    tile.innerHTML = `<div class="num">${n - WORLDS[worldOf(n)].first + 1}</div>`
       + (gadget ? `<img class="icon" alt="" src="${thumbOf(gadget)}">` : '<div class="icon"></div>')
       + `<div class="name">${level.name}</div>`
       + `<div class="badge">${done ? '✓' : tile.disabled ? '🔒' : ''}</div>`;
     tile.onclick = () => { closePicker(); loadLevel(n); };
-    levelGrid.appendChild(tile);
+    pages[worldOf(n)].appendChild(tile);
   });
+  showWorld(worldOf(levelIndex));
   picker.hidden = false;
 }
+function showWorld(w) {
+  pickerWorld = THREE.MathUtils.clamp(w, 0, WORLDS.length - 1);
+  document.getElementById('world-title').textContent = worldTitle(pickerWorld);
+  worldPrev.disabled = pickerWorld === 0;
+  worldNext.disabled = pickerWorld === WORLDS.length - 1;
+  [...levelGrid.children].forEach((page, k) => page.classList.toggle('on', k === pickerWorld));
+  [...worldDots.children].forEach((dot, k) => dot.classList.toggle('on', k === pickerWorld));
+}
+worldPrev.onclick = () => showWorld(pickerWorld - 1);
+worldNext.onclick = () => showWorld(pickerWorld + 1);
 function closePicker() { picker.hidden = true; }
 // Like the menu, it covers the whole screen and takes the keys: Escape
-// closes it, and nothing else reaches the game.
+// closes it, ← → change worlds, and nothing else reaches the game.
 document.getElementById('btn-levels').onclick = openPicker;
 document.getElementById('picker-close').onclick = closePicker;
 picker.addEventListener('pointerdown', (ev) => { if (ev.target === picker) closePicker(); });
@@ -1918,10 +1964,14 @@ function levelWon() {
   levelsDone.add(level.name);
   scheduleSave();
   const last = levelIndex === LEVELS.length - 1;
-  document.getElementById('win-title').textContent = last ? 'You beat every level!' : `Level ${levelIndex + 1} done!`;
+  // The last level of a world opens the next world.
+  const newWorld = !last && worldOf(levelIndex + 1) !== worldOf(levelIndex);
+  document.getElementById('win-title').textContent = last ? 'You beat every level!'
+    : newWorld ? `World ${worldOf(levelIndex) + 1} done!` : `Level ${levelNumber(levelIndex)} done!`;
   const next = !last && newGadgetOf(levelIndex + 1);
   document.getElementById('win-text').textContent = last
     ? 'Now build anything you like in the Sandbox!'
+    : newWorld ? `Next up: ${worldTitle(worldOf(levelIndex + 1))}`
     : next ? `Next up: The ${titleCase(GADGETS[next].name)}` : `Next up: ${LEVELS[levelIndex + 1].name}`;
   setTextWithIcons(document.getElementById('win-next'), last ? 'Sandbox {play}' : 'Next Level {play}');
   // Let the star spin a moment first.
