@@ -262,7 +262,7 @@ const LEVELS = [
   {
     name: 'Back Under',
     goal: 'Shoot the marble. Finish the dominoes. Then send the ball back under the shelf.',
-    parts: { launcher: 1, domino: 1, ramp: 1 },
+    parts: { launcher: 1, domino: 2, ramp: 1 },
     items: [
       ['block', 0, 0, 0, false, { w: 8, h: 2 }], ['block', 8, 2, 0, false, { w: 1.5, h: 0.5 }],
       ['marble', 1, 1.75],
