@@ -88,7 +88,7 @@ const EXAMPLES = {
     blurb: 'A pendulum, pulled back, swings into a bell and the star behind it.',
     items: [
       ['pendulum', 6, 1, -1],
-      ['bell', 8, 2],
+      ['bell', 8, 2.25],
       ['star', 8, 1],
     ],
   },

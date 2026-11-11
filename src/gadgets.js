@@ -69,6 +69,19 @@ function fulcrumGeometry(w, h, d) {
   return geo;
 }
 
+// A box whose top is narrower than its bottom, centered on its middle.
+// Takes half sizes: halfTop and halfBottom across, halfH tall, halfD deep.
+function trapezoidShape(halfTop, halfBottom, halfH, halfD) {
+  const v = (x, y, z) => new CANNON.Vec3(x, y, z);
+  const vertices = [
+    v(-halfBottom, -halfH, -halfD), v(halfBottom, -halfH, -halfD), v(halfTop, halfH, -halfD), v(-halfTop, halfH, -halfD),
+    v(-halfBottom, -halfH, halfD), v(halfBottom, -halfH, halfD), v(halfTop, halfH, halfD), v(-halfTop, halfH, halfD),
+  ];
+  // Faces wound counter-clockwise when viewed from outside.
+  const faces = [[0, 1, 5, 4], [3, 7, 6, 2], [0, 3, 2, 1], [4, 5, 6, 7], [0, 4, 7, 3], [1, 2, 6, 5]];
+  return new CANNON.ConvexPolyhedron({ vertices, faces });
+}
+
 function wedgeShape(w, h, d, mirror = false) {
   const hw = w / 2, hh = h / 2, hd = d / 2;
   const sx = mirror ? -1 : 1; // mirror across x: negate x and reverse face winding
@@ -599,23 +612,35 @@ const GADGETS = {
     name: 'Bell',
     w: 1, h: 1,
     idleFrame: true,
+    // A 1 x ¼ bar on top (like the hammer's base and the pendulum's bar),
+    // and a bell under it that fills the rest of the square.
     makeMesh() {
       const g = new THREE.Group();
-      g.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(1, 0.125, 0.5), standard(0x8a7f6a))).translateY(0.9375));
+      g.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(1, 0.25, 0.6), standard(0x8a7f6a))).translateY(0.875));
       const swing = named(new THREE.Group(), 'swing');
-      swing.position.y = 0.875;
-      const cup = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.375, 0.5, 16), standard(0xf5c542, { roughness: 0.3, metalness: 0.4 })));
-      cup.position.y = -0.25; // cup spans y 0.375..0.875
+      swing.position.y = 0.75; // it swings from the bar's underside
+      const gold = standard(0xf5c542, { roughness: 0.3, metalness: 0.4 });
+      // Hung from the bar by a short post, ⅛ across (y 0.625..0.75).
+      swing.add(shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.0625, 0.0625, 0.125, 32), gold)).translateY(-0.0625));
+      // 16 flat sides, each outlined (a corner sits at each side, so the
+      // rim spans the full width).
+      const cup = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.5, 0.5, 16), gold));
+      cup.position.y = -0.375; // cup spans y 0.125..0.625
       swing.add(cup);
-      const clapper = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), standard(0x333333)));
-      clapper.position.y = -0.535; // bottom on y = 0.25
+      const clapper = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.125, 32, 24), standard(0x333333)));
+      clapper.position.y = -0.625; // ¼ across, its middle at y 0.125, so it reaches the square's bottom
       swing.add(clapper);
       g.add(swing);
       return g;
     },
     makeBody() {
       const body = new CANNON.Body({ mass: 0, material: MATS.bell });
-      body.addShape(new CANNON.Sphere(0.34), new CANNON.Vec3(0, 0.5, 0));
+      body.addShape(new CANNON.Box(new CANNON.Vec3(0.5, 0.125, 0.3)), new CANNON.Vec3(0, 0.875, 0));
+      // The bell, seen side on: ½ wide at the top, full width at the lip,
+      // the short post it hangs from (a ⅛ square, seen side on) and the clapper.
+      body.addShape(trapezoidShape(0.25, 0.5, 0.25, 0.25), new CANNON.Vec3(0, 0.375, 0));
+      body.addShape(new CANNON.Sphere(0.125), new CANNON.Vec3(0, 0.125, 0)); // the clapper
+      body.addShape(new CANNON.Box(new CANNON.Vec3(0.0625, 0.0625, 0.0625)), new CANNON.Vec3(0, 0.6875, 0));
       return body;
     },
     // Set by the game when something hits the bell: starts the swing.
