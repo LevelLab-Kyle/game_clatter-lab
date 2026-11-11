@@ -345,12 +345,15 @@ body.playing #btn-play .icon-stop { display: block; }
 .button-danger { background: var(--color-error); border-color: var(--color-error); color: var(--color-on-accent); }
 
 /* While playing, a frame and a badge make it plain the board isn't
-   editable (the grid also fades out, in main.js). */
+   editable (the grid also fades out, in main.js). The badge is a tab
+   growing up out of the frame's bottom edge, in the ground; it shows only
+   when it fits there, with --content-gap of ground above it. */
+#stage { --play-frame: var(--space-1); }
 #stage::after {
   content: '';
   position: absolute;
   inset: 0;
-  border: 5px solid var(--color-accent);
+  border: var(--play-frame) solid var(--color-accent);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -359,20 +362,24 @@ body.playing #stage::after { opacity: 1; }
 #play-badge {
   position: absolute;
   left: 50%;
-  bottom: var(--content-gap);
+  bottom: 0; /* over the frame's bottom edge, the same blue, so the two join */
   transform: translateX(-50%);
+  /* Not layout (it's placed absolutely): the ground it needs above it,
+     read by main.js */
+  margin-top: var(--content-gap);
   background: var(--color-accent);
   color: var(--color-on-accent);
   font-weight: var(--font-weight-bold);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-drop);
-  pointer-events: none;
+  padding: var(--space-1) var(--space-3) calc(var(--space-1) + var(--play-frame));
+  border: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0; /* round on top, square where it meets the frame */
+  cursor: pointer;
+  pointer-events: none; /* tappable only while it shows */
   white-space: nowrap;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
-body.playing #play-badge { opacity: 1; }
+body.playing #play-badge.fits { opacity: 1; pointer-events: auto; } /* only when it fits in the ground (main.js); a tap stops */
 /* The Play/Stop button's own icons, at the size of the text */
 .badge-icon { width: 1.3em; height: 1.3em; vertical-align: -0.3em; }
 

@@ -1485,6 +1485,24 @@ function updateCamera() {
   camera.updateProjectionMatrix();
 }
 
+// While playing, "Playing, press stop to edit" is a tab up out of the frame's
+// bottom edge, in the ground, and shows only when it fits there with a gap
+// above (its CSS margin-top): the ground is always empty, so it never covers
+// the contraption. Phones and zoomed-out views rarely have room.
+const playBadge = document.getElementById('play-badge');
+playBadge.onclick = () => { if (playing) stopPlay(); }; // the tab is a Stop button too
+const _groundTop = new THREE.Vector3();
+let badgeNeeds = 0; // px of ground: the tab and the gap above it; 0 = not measured
+window.addEventListener('resize', () => { badgeNeeds = 0; });
+function updatePlayBadge() {
+  if (!playing) return;
+  if (!badgeNeeds) badgeNeeds = playBadge.offsetHeight + (parseFloat(getComputedStyle(playBadge).marginTop) || 0);
+  _groundTop.set(view.cx, 0, 0).project(camera);
+  const ground = canvas.clientHeight - (1 - _groundTop.y) / 2 * canvas.clientHeight;
+  const fits = ground >= badgeNeeds;
+  if (playBadge.classList.contains('fits') !== fits) playBadge.classList.toggle('fits', fits);
+}
+
 const clock = new THREE.Clock();
 function frame() {
   requestAnimationFrame(frame);
@@ -1518,6 +1536,7 @@ function frame() {
   updateItemTools();
   updateLocked(dt);
   updateCoach(dt);
+  updatePlayBadge();
 
   // The outline needs the composer's extra passes; with nothing selected
   // (always so while playing) draw straight to the screen, which is much
