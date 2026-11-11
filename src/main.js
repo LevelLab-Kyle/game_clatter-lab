@@ -443,6 +443,13 @@ function stopPlay() {
   follow = null;
 }
 
+// The player pressed Stop. On a level, a run that missed counts toward
+// opening the goal card (see nudgeHint).
+function playerStop() {
+  stopPlay();
+  if (currentLevel() && !solvedHere && ++missedPlays >= STUCK_MISSES * worldNumber()) nudgeHint();
+}
+
 function onGoalHit(star) {
   if (won) return;
   won = true;
@@ -980,8 +987,8 @@ window.addEventListener('keydown', (ev) => {
     ev.shiftKey ? redo() : undo();
   }
   if ((ev.metaKey || ev.ctrlKey) && ev.key === 'y') { ev.preventDefault(); redo(); }
-  if (ev.key === 'Escape') { select(null); clearConfirm.hidden = true; }
-  if (ev.key === ' ') { ev.preventDefault(); if (playing) stopPlay(); else { armAudio(); startPlay(); } }
+  if (ev.key === 'Escape') { select(null); clearConfirm.hidden = true; hideHint(); }
+  if (ev.key === ' ') { ev.preventDefault(); if (playing) playerStop(); else { armAudio(); startPlay(); } }
 });
 
 // Every way a gadget can be turned, in Rotate order, as { rot, flip }. A
@@ -1269,7 +1276,7 @@ const toolDelete = document.getElementById('tool-delete');
 const trayList = document.getElementById('gadget-list');
 
 // One button: Play while editing, Stop while playing.
-btnPlay.onclick = () => { if (playing) stopPlay(); else { armAudio(); startPlay(); } };
+btnPlay.onclick = () => { if (playing) playerStop(); else { armAudio(); startPlay(); } };
 // Clear asks first. In a level it takes back the player's parts and leaves
 // the level's own pieces.
 const clearConfirm = document.getElementById('clear-confirm');
@@ -1637,7 +1644,7 @@ function updateCamera() {
 // above (its CSS margin-top): the ground is always empty, so it never covers
 // the contraption. Phones and zoomed-out views rarely have room.
 const playBadge = document.getElementById('play-badge');
-playBadge.onclick = () => { if (playing) stopPlay(); }; // the tab is a Stop button too
+playBadge.onclick = () => { if (playing) playerStop(); }; // the tab is a Stop button too
 const _groundTop = new THREE.Vector3();
 let badgeNeeds = 0; // px of ground: the tab and the gap above it; 0 = not measured
 window.addEventListener('resize', () => { badgeNeeds = 0; });
@@ -1682,6 +1689,16 @@ function frame() {
   }
   updateItemTools();
   updateLocked(dt);
+  // The Sandbox card opens each time the Sandbox board goes empty.
+  const blank = !currentLevel() && !items.size;
+  if (blank && !wasBlank) showHint();
+  wasBlank = blank;
+  // A long time on a level without solving it opens the goal once.
+  // The clock waits while a card, the menu or the level picker is up.
+  if (currentLevel() && !solvedHere && !hintOpen && !menuOpen && picker.hidden) {
+    levelTime += dt;
+    if (levelTime > STUCK_SECONDS * worldNumber() && !playing && !drag) nudgeHint();
+  }
   updateCoach(dt);
   updatePlayBadge();
 
@@ -1799,7 +1816,12 @@ function showMode() {
   buildTray();
   fitBrand();
   showTourGhosts();
-  showHint();
+  levelTime = 0;
+  missedPlays = 0;
+  solvedHere = nudged = false;
+  // The first level of each world opens with the welcome. Elsewhere, ? opens the hint.
+  if (level?.world) showHint(true);
+  else hideHint();
 }
 
 // Show "Clatter Lab" in the middle of the top bar only when there's a clear gap
@@ -1830,10 +1852,24 @@ document.getElementById('mode-levels').onclick = () => { if (mode !== 'levels') 
 document.getElementById('mode-sandbox').onclick = enterSandbox;
 
 // The hint card floats over the top of the board: the level's goal, or what
-// the Sandbox is for. Play or ✕ closes it; ? brings it back.
+// the Sandbox is for. It opens from ?, as the welcome on the first level
+// of each world, on an empty Sandbox, or on its own when a player seems
+// stuck. Play or a tap anywhere closes it.
 const hint = document.getElementById('hint');
 const btnHint = document.getElementById('btn-hint');
 let hintOpen = false;
+// Stuck on a level: per world number, 1 miss or 30 seconds without
+// solving it (world 2 waits for 2 misses or 60 seconds), so later worlds
+// leave the player alone longer.
+const STUCK_MISSES = 1, STUCK_SECONDS = 30;
+const worldNumber = () => worldOf(levelIndex) + 1;
+let levelTime = 0, missedPlays = 0, solvedHere = false, nudged = false;
+let wasBlank = false; // the Sandbox board was empty last frame
+function nudgeHint() {
+  if (nudged) return;
+  nudged = true;
+  showHint();
+}
 let hintAnim = null;
 let pageReady = false; // the card just appears on page load; it only flies after that
 
@@ -1847,8 +1883,9 @@ const ICONS = {
   flip: () => document.querySelector('#tool-flip svg'),
   play: () => document.querySelector('#btn-play .icon-play'),
   stop: () => document.querySelector('#btn-play .icon-stop'),
+  help: () => document.createTextNode(btnHint.textContent),
 };
-const ICON_NAMES = { rotate: 'Rotate', size: 'Size', flip: 'Flip', play: 'Play', stop: 'Stop' };
+const ICON_NAMES = { rotate: 'Rotate', size: 'Size', flip: 'Flip', play: 'Play', stop: 'Stop', help: 'Hint' };
 function setTextWithIcons(el, text) {
   el.replaceChildren();
   text.split(/\{(\w+)\}/).forEach((part, n) => {
@@ -1858,17 +1895,19 @@ function setTextWithIcons(el, text) {
     icon.className = 'inline-icon';
     icon.title = ICON_NAMES[part];
     const copy = svg.cloneNode(true);
-    copy.removeAttribute('class');
+    if (copy.nodeType === Node.ELEMENT_NODE) copy.removeAttribute('class');
     icon.append(copy);
     el.append(icon);
   });
 }
 
-function showHint() {
+function showHint(welcome = false) {
   const level = currentLevel();
-  document.getElementById('hint-title').textContent = level ? `Level ${levelNumber(levelIndex)}: ${level.name}` : 'Sandbox';
-  setTextWithIcons(document.getElementById('hint-text'), level
-    ? level.goal
+  document.getElementById('hint-title').textContent = welcome ? 'Welcome!'
+    : level ? `Level ${levelNumber(levelIndex)}: ${level.name}` : 'Sandbox';
+  setTextWithIcons(document.getElementById('hint-text'), welcome
+    ? 'Build a machine to get the ball to the star.\n\nNeed help? Tap the {help} button.'
+    : level ? level.goal
     : 'Use any part you like. Build anything! Need ideas? Try Examples at the top.');
   if (!hintOpen) {
     hintOpen = true;
@@ -1898,7 +1937,11 @@ function flyHint(closing) {
     { duration: 250, easing: closing ? 'ease-in' : 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
   if (closing) hintAnim.onfinish = () => { hint.hidden = true; hintAnim = null; };
 }
-hint.onclick = hideHint; // a tap anywhere on the card closes it, ✕ included
+hint.onclick = hideHint;
+// A tap anywhere else closes it too (? toggles it on its own).
+window.addEventListener('pointerdown', (ev) => {
+  if (hintOpen && !hint.contains(ev.target) && !btnHint.contains(ev.target)) hideHint();
+}, true);
 btnHint.onclick = () => { if (hintOpen) hideHint(); else showHint(); };
 
 // Tapping a locked piece (a level's own) gives it a quick "no" shake and
@@ -2011,8 +2054,6 @@ function updateCoach(dt) {
   // whether the bubble sits above ('down') or below ('up') that point.
   let text = null, at = null, dir = 'down';
   const name = ghost && GADGETS[ghost.type].name.toLowerCase();
-  // The goal card and the bubble show together; picking up a part closes the card.
-  if (on && drag && drag.kind !== 'pan') hideHint();
   if (!on || !winCard.hidden || won) {
     // nothing to say
   } else if (playing) {
@@ -2163,6 +2204,7 @@ let winTimer = null;
 const titleCase = (text) => text.replace(/\b\w/g, (c) => c.toUpperCase());
 
 function levelWon() {
+  solvedHere = true;
   const level = currentLevel();
   levelsDone.add(level.name);
   scheduleSave();
@@ -2170,12 +2212,12 @@ function levelWon() {
   // The last level of a world opens the next world.
   const newWorld = !last && worldOf(levelIndex + 1) !== worldOf(levelIndex);
   document.getElementById('win-title').textContent = last ? 'You beat every level!'
-    : newWorld ? `World ${worldOf(levelIndex) + 1} done!` : `Level ${levelNumber(levelIndex)} done!`;
+    : newWorld ? `World ${worldOf(levelIndex) + 1} done!` : 'Done!';
   const next = !last && newGadgetOf(levelIndex + 1);
   document.getElementById('win-text').textContent = last
     ? 'Now build anything you like in the Sandbox!'
-    : newWorld ? `Next up: ${worldTitle(worldOf(levelIndex + 1))}`
-    : next ? `Next up: The ${titleCase(GADGETS[next].name)}` : `Next up: ${LEVELS[levelIndex + 1].name}`;
+    : newWorld ? `Next Up: ${worldTitle(worldOf(levelIndex + 1))}`
+    : next ? `Next Up: The ${titleCase(GADGETS[next].name)}` : `Next Up: ${LEVELS[levelIndex + 1].name}`;
   setTextWithIcons(document.getElementById('win-next'), last ? 'Sandbox {play}' : 'Next Level {play}');
   // Let the star spin a moment first.
   clearTimeout(winTimer);

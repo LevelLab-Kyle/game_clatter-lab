@@ -491,9 +491,7 @@ body.loading #loader { display: flex; }
 /* On a blue fill (tour bubble, blue buttons) the icon goes plain, in the text color */
 #coach .inline-icon, .button-accent .inline-icon, #locked-tag .inline-icon { width: auto; height: auto; margin: 0; background: none; border: none; vertical-align: middle; }
 #coach .inline-icon svg, .button-accent .inline-icon svg, #locked-tag .inline-icon svg { width: 1em; height: 1em; }
-.hint-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--content-gap); }
-/* ✕ reaches halfway into the card's padding, toward its corner */
-.hint-head .button-icon { flex: 0 0 auto; margin: calc(var(--content-gap) / -2) calc(var(--content-gap) / -2) 0 0; }
+#hint-text { white-space: pre-line; } /* a blank line in the text splits it in two */
 #btn-hint { font-weight: var(--font-weight-bold); }
 
 /* Tour bubble (level 1): points at the next thing to do. The arrow sits
@@ -559,8 +557,8 @@ body.loading #loader { display: flex; }
 #win-card {
   position: absolute;
   left: 50%;
-  top: var(--content-gap);
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%);
   width: min(320px, calc(100% - 2 * var(--content-gap)));
   padding: var(--content-gap);
   text-align: center;
@@ -572,7 +570,7 @@ body.loading #loader { display: flex; }
 #win-card[hidden] { display: none; }
 .win-star { font-size: 40px; line-height: 1; }
 .win-buttons { display: flex; gap: var(--content-gap); justify-content: center; }
-@keyframes pop-in { from { transform: translateX(-50%) scale(0.8); opacity: 0; } }
+@keyframes pop-in { from { transform: translate(-50%, -50%) scale(0.8); opacity: 0; } }
 
 /* Level picker */
 #level-picker {
