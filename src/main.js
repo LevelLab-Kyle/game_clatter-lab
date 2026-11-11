@@ -141,26 +141,39 @@ function canPlace(type, x, y, rot = 0, ignoreId = null, size = null) {
   });
 }
 
-// The free spot nearest to where a gadget was dropped. `ax, ay` is its
-// un-snapped position, so it slides toward whichever side it was closer to.
-// Spots are on the subgrid, up to 8 cells away.
 const snapSub = (v) => Math.round(v * SUB) / SUB;
-// Drops land on the quarter-cell subgrid (DROP_STEPS per cell), on the
-// nearest free spot up to 8 cells away.
-const DROP_STEPS = SUB;
-function nearestFree(type, ax, ay, rot = 0, ignoreId = null, size = null) {
-  return nearestFreeStep(type, ax, ay, rot, ignoreId, size, DROP_STEPS);
-}
-
-function nearestFreeStep(type, ax, ay, rot, ignoreId, size, sub) {
-  const snap = (v) => Math.round(v * sub) / sub;
-  const x0 = snap(ax), y0 = Math.max(0, snap(ay));
+// Where a dropped gadget lands. Zoomed out, quarter cells are too small to
+// aim at, so a drop snaps to half cells, or whole cells zoomed far out (each
+// step at least 10px on screen) -- but only when that spot is free. If it
+// isn't, it slides to the nearest free quarter-cell spot, up to 8 cells
+// away, so it can still sit flush against its neighbors. A moved gadget
+// steps sideways from where it was, keeping its offset (from 0.75: 1.75,
+// 2.75, ...), so it stays lined up; heights always count from the ground.
+// A level's grid never gets coarser than its answer needs, and there a
+// moved gadget keeps its offset only if that's on the level's grid.
+const DROP_MIN_STEP_PX = 10;
+const stepsFor = (v) => (Number.isInteger(v) ? 1 : Number.isInteger(v * 2) ? 2 : SUB);
+// level -> the steps per cell its answer needs (1, 2 or 4)
+const answerSteps = new Map(LEVELS.map((lv) => [lv, Math.max(1, ...lv.solution.flatMap(([, x, y]) => [stepsFor(x), stepsFor(y)]))]));
+function nearestFree(type, ax, ay, rot = 0, ignoreId = null, size = null, from = null) {
+  const cellPx = PX_PER_UNIT * view.zoom;
+  const levelSteps = currentLevel() ? answerSteps.get(currentLevel()) : 1;
+  const steps = Math.max(levelSteps, cellPx >= SUB * DROP_MIN_STEP_PX ? SUB : cellPx >= 2 * DROP_MIN_STEP_PX ? 2 : 1);
+  if (steps < SUB) {
+    const ox = from && (!currentLevel() || stepsFor(from.x) <= levelSteps) ? from.x : 0;
+    const x = ox + Math.round((ax - ox) * steps) / steps;
+    const y = Math.max(0, Math.round(ay * steps) / steps);
+    if (canPlace(type, x, y, rot, ignoreId, size)) return { x, y };
+  }
+  // The nearest free quarter-cell spot to the un-snapped drop point, so it
+  // slides toward whichever side it was closer to.
+  const x0 = snapSub(ax), y0 = Math.max(0, snapSub(ay));
   const spots = [];
-  for (let r = 0; r <= 8 * sub; r++) {
+  for (let r = 0; r <= 8 * SUB; r++) {
     for (let dx = -r; dx <= r; dx++) {
       for (let dy = -r; dy <= r; dy++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-        const x = x0 + dx / sub, y = y0 + dy / sub;
+        const x = x0 + dx / SUB, y = y0 + dy / SUB;
         if (y >= 0) spots.push({ x, y, d: Math.hypot(x - ax, y - ay) });
       }
     }
@@ -606,15 +619,14 @@ function pointerToWorld(ev) {
   return raycaster.ray.intersectPlane(boardPlane, hit) ? hit : null;
 }
 
-// Where the dragged gadget floats (un-snapped) and the cell it would land in.
+// Where the dragged gadget floats, un-snapped (nearestFree picks where it lands).
 // `grab` is the pointer-to-anchor offset so a picked-up item doesn't jump.
 function dragTarget(ev, size, grab) {
   const p = pointerToWorld(ev);
   if (!p) return null;
   const ax = grab ? p.x + grab.x : p.x - size.w / 2;
   const ay = grab ? p.y + grab.y : p.y - size.h / 2;
-  const snap = (v) => Math.round(v * DROP_STEPS) / DROP_STEPS; // drops snap to quarter cells
-  return { ax, ay, x: snap(ax), y: snap(ay) };
+  return { ax, ay };
 }
 
 // Short ease-out animation into place: slide (and turn, if the rotation
@@ -759,7 +771,7 @@ function endDrag(ev) {
     }
   } else if (d.kind === 'move') {
     const from = d.item.mesh.position.clone();
-    const spot = d.moved && d.cell && nearestFree(d.item.type, d.cell.ax, d.cell.ay, d.item.rot, d.item.id, d.item.size);
+    const spot = d.moved && d.cell && nearestFree(d.item.type, d.cell.ax, d.cell.ay, d.item.rot, d.item.id, d.item.size, d.item);
     if (spot) {
       if (spot.x !== d.item.x || spot.y !== d.item.y) recordEdit();
       moveItem(d.item, spot.x, spot.y);
@@ -2050,6 +2062,37 @@ function showWorld(w) {
 }
 worldPrev.onclick = () => showWorld(pickerWorld - 1);
 worldNext.onclick = () => showWorld(pickerWorld + 1);
+// Scrolling sideways (trackpad, mouse) or swiping sideways (touch) flips to
+// the next or previous world, one per gesture. Up and down still scroll
+// the levels.
+let pickerWheelAt = 0;
+picker.addEventListener('wheel', (ev) => {
+  if (Math.abs(ev.deltaX) <= Math.abs(ev.deltaY)) return;
+  ev.preventDefault();
+  if (Math.abs(ev.deltaX) < 4 || ev.timeStamp - pickerWheelAt < 400) return;
+  pickerWheelAt = ev.timeStamp;
+  showWorld(pickerWorld + Math.sign(ev.deltaX));
+}, { passive: false });
+const PICKER_SWIPE_PX = 50;
+let pickerSwipe = null; // { x, y } where a touch began
+let pickerSwiped = false; // the touch that just ended was a swipe, not a tap
+picker.addEventListener('pointerdown', (ev) => {
+  pickerSwipe = ev.pointerType === 'mouse' ? null : { x: ev.clientX, y: ev.clientY };
+  pickerSwiped = false;
+});
+picker.addEventListener('pointerup', (ev) => {
+  if (!pickerSwipe) return;
+  const dx = ev.clientX - pickerSwipe.x, dy = ev.clientY - pickerSwipe.y;
+  pickerSwipe = null;
+  if (Math.abs(dx) < PICKER_SWIPE_PX || Math.abs(dx) < 2 * Math.abs(dy)) return;
+  pickerSwiped = true;
+  showWorld(pickerWorld - Math.sign(dx)); // swipe left for the next world
+});
+picker.addEventListener('pointercancel', () => { pickerSwipe = null; });
+// A swipe that started on a level tile mustn't also open that level.
+picker.addEventListener('click', (ev) => {
+  if (pickerSwiped) { ev.stopPropagation(); ev.preventDefault(); pickerSwiped = false; }
+}, true);
 function closePicker() { picker.hidden = true; }
 // Like the menu, it covers the whole screen and takes the keys: Escape
 // closes it, ← → change worlds, and nothing else reaches the game.

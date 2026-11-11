@@ -587,6 +587,8 @@ body.loading #loader { display: flex; }
   background: var(--overlay-black-50);
 }
 #level-picker[hidden] { display: none; }
+/* Sideways swipes flip worlds (main.js); up and down still scroll the levels. */
+#level-picker { touch-action: pan-y; }
 .picker-panel {
   width: min(640px, 100%);
   max-height: 100%;

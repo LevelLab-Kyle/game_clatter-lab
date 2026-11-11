@@ -4,7 +4,7 @@ Prototype of a kids' Rube Goldberg game. Drag gadgets onto a voxel board, press 
 
 Two modes, switched in the menu (**☰ Menu** at the right of the top bar):
 
-- **Levels**: puzzles that get harder as you go. Each level comes with locked pieces already on the board and a few parts in the tray (the number on each card is how many are left). Get anything to the ⭐ to win and unlock the next level. Each new gadget arrives in its own level, marked NEW in the tray. Levels come in worlds: **1 Getting Started** (1-1 to 1-6: ramp, block, domino, plank), **2 New Gadgets** (2-1 to 2-8: one new gadget each) and **3 Put It Together** (3-1 to 3-11: gadgets combined). A level's number is its world, then its place in that world ("2-3"). The grid button (four squares) left of the level name opens the level picker on the current world; ‹ › (or ← →) switch worlds. Beating a world's last level opens the next world.
+- **Levels**: puzzles that get harder as you go. Each level comes with locked pieces already on the board and a few parts in the tray (the number on each card is how many are left). Get anything to the ⭐ to win and unlock the next level. Each new gadget arrives in its own level, marked NEW in the tray. Levels come in worlds: **1 Getting Started** (1-1 to 1-6: ramp, block, domino, plank), **2 New Gadgets** (2-1 to 2-8: one new gadget each) and **3 Put It Together** (3-1 to 3-11: gadgets combined). A level's number is its world, then its place in that world ("2-3"). The grid button (four squares) left of the level name opens the level picker on the current world; ‹ ›, ← →, a sideways scroll on a trackpad or mouse, or a sideways swipe switch worlds. Beating a world's last level opens the next world.
 - **Sandbox**: every gadget, no limits, plus the Examples menu.
 
 A hint card floats over the top of the board: the level's goal in Levels, or what the Sandbox is for. A tap anywhere on it (or its ✕, or Play) closes it; the **?** button by Home brings it back.
@@ -21,7 +21,7 @@ The page matches the device's light or dark setting, and switches live if it cha
 
 | Action | How |
 |---|---|
-| Place a gadget | Drag a card from the tray onto the board. It floats freely while dragging and slides into the nearest free quarter-cell spot when you let go. The arrow keys nudge it a quarter at a time |
+| Place a gadget | Drag a card from the tray onto the board. It floats freely while dragging and lands when you let go: on quarter cells normally, half cells when zoomed out and whole cells when zoomed far out (each step stays at least 10px on screen), if that spot is free; otherwise it slides into the nearest free quarter-cell spot, so it can still sit flush against its neighbors. A moved gadget steps sideways from where it was and keeps its offset (zoomed out from ¾: 1¾, 2¾, …), so it stays lined up; heights always count from the ground. In a level the grid never gets coarser than the level's answer needs, and a moved gadget keeps its offset only if it's on that grid, so the answer can always be built. The arrow keys nudge it a quarter at a time |
 | More gadgets | Cards cut off at the tray edge fade out; the ‹ / › arrows (or a scroll/swipe over the tray) slide the next set into view |
 | Move a gadget | Drag it. The selected gadget gets a blue outline, same as the platform builder |
 | Delete | Right-click it, or select + `Delete` |
