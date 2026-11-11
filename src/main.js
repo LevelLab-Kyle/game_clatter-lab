@@ -1279,6 +1279,12 @@ setLockSwitch.onclick = () => {
   lockY = !lockY;
   try { localStorage.setItem(LOCK_KEY, lockY ? 'on' : 'off'); } catch {}
   showLock();
+  // Locking settles the view back to Home's height (its bottom on the row of
+  // ground), keeping the zoom and where it is left to right.
+  if (lockY) {
+    const { cx, zoom } = viewSnap || view; // where it's headed, if it's still easing
+    viewSnap = { cx, cy: MIN_VIEW_Y + viewSize(zoom).h / 2, zoom };
+  }
 };
 showLock();
 
