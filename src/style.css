@@ -831,9 +831,6 @@ body.mode-levels #btn-share { display: none; }
 }
 .menu-section { display: flex; flex-direction: column; }
 .menu-section > * + * { margin-top: var(--content-gap); }
-/* A label sits directly above what it names, as in Level Lab's forms. */
-.menu-label + *,
-.menu-label + [hidden] + * { margin-top: 0; } /* also past a hidden line (the email, signed out) */
 .menu-label {
   font-weight: var(--font-weight-bold);
   color: var(--color-text-dark);
