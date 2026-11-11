@@ -126,19 +126,23 @@ const ghostMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: 
 // ---------------------------------------------------------------------------
 
 const items = new Map(); // id -> item
-const occupied = new Map(); // "i,j" subgrid cell -> id (see footprintCells)
+// id -> the item's outline: where it really is (outlineAt in gadgets.js).
+// Gadgets may sit anywhere their outlines don't overlap; touching is fine.
+const outlines = new Map();
 let nextId = 1;
 let selected = null;
 let playing = false;
 
-const key = (x, y) => `${x},${y}`;
+const outlineOf = (item) => outlineAt(item.type, item.x, item.y, item.rot, item.size, !!item.flip);
+const markItem = (item) => outlines.set(item.id, outlineOf(item));
 
-function canPlace(type, x, y, rot = 0, ignoreId = null, size = null) {
-  return footprintCells(type, x, y, rot, size).every(([cx, cy]) => {
-    if (cy < 0) return false;
-    const id = occupied.get(key(cx, cy));
-    return id == null || id === ignoreId;
-  });
+function canPlace(type, x, y, rot = 0, ignoreId = null, size = null, flip = false) {
+  const here = outlineAt(type, x, y, rot, size, flip);
+  if (outlineBottom(here) < -OUTLINE_EPS) return false; // nothing below the ground
+  for (const [id, there] of outlines) {
+    if (id !== ignoreId && outlinesOverlap(here, there)) return false;
+  }
+  return true;
 }
 
 const snapSub = (v) => Math.round(v * SUB) / SUB;
@@ -155,7 +159,7 @@ const DROP_MIN_STEP_PX = 10;
 const stepsFor = (v) => (Number.isInteger(v) ? 1 : Number.isInteger(v * 2) ? 2 : SUB);
 // level -> the steps per cell its answer needs (1, 2 or 4)
 const answerSteps = new Map(LEVELS.map((lv) => [lv, Math.max(1, ...lv.solution.flatMap(([, x, y]) => [stepsFor(x), stepsFor(y)]))]));
-function nearestFree(type, ax, ay, rot = 0, ignoreId = null, size = null, from = null) {
+function nearestFree(type, ax, ay, rot = 0, ignoreId = null, size = null, from = null, flip = false) {
   const cellPx = PX_PER_UNIT * view.zoom;
   const levelSteps = currentLevel() ? answerSteps.get(currentLevel()) : 1;
   const steps = Math.max(levelSteps, cellPx >= SUB * DROP_MIN_STEP_PX ? SUB : cellPx >= 2 * DROP_MIN_STEP_PX ? 2 : 1);
@@ -163,7 +167,7 @@ function nearestFree(type, ax, ay, rot = 0, ignoreId = null, size = null, from =
     const ox = from && (!currentLevel() || stepsFor(from.x) <= levelSteps) ? from.x : 0;
     const x = ox + Math.round((ax - ox) * steps) / steps;
     const y = Math.max(0, Math.round(ay * steps) / steps);
-    if (canPlace(type, x, y, rot, ignoreId, size)) return { x, y };
+    if (canPlace(type, x, y, rot, ignoreId, size, flip)) return { x, y };
   }
   // The nearest free quarter-cell spot to the un-snapped drop point, so it
   // slides toward whichever side it was closer to.
@@ -179,7 +183,7 @@ function nearestFree(type, ax, ay, rot = 0, ignoreId = null, size = null, from =
     }
   }
   spots.sort((a, b) => a.d - b.d);
-  return spots.find((s) => canPlace(type, s.x, s.y, rot, ignoreId, size)) || null;
+  return spots.find((s) => canPlace(type, s.x, s.y, rot, ignoreId, size, flip)) || null;
 }
 
 const applyTransform = placeMesh;
@@ -208,14 +212,17 @@ function restoreRest(obj) {
 
 const cellsOf = (item) => footprintCells(item.type, item.x, item.y, item.rot, item.size);
 
-const sameSize = (a, b) => (a?.w ?? 1) === (b?.w ?? 1) && (a?.h ?? 1) === (b?.h ?? 1) && (a?.off ?? 0) === (b?.off ?? 0);
+// The same Size step: width, height and a seesaw's offset.
+const sameShape = (a, b) => (a?.w ?? 1) === (b?.w ?? 1) && (a?.h ?? 1) === (b?.h ?? 1) && (a?.off ?? 0) === (b?.off ?? 0);
+// The same in every field, a pulley's platform heights too.
+const sameSize = (a, b) => sameShape(a, b) && a?.left === b?.left && a?.right === b?.right;
 
 // Locked items are a level's own pieces: the player can't move or remove them.
 function addItem(type, x, y, rot = 0, flip = false, size = null, locked = false) {
   const item = { id: nextId++, type, x, y, rot, flip, size, locked, parts: null };
   item.mesh = GADGETS[type].makeMesh(item);
   items.set(item.id, item);
-  cellsOf(item).forEach(([cx, cy]) => occupied.set(key(cx, cy), item.id));
+  markItem(item);
   applyTransform(item);
   storeRest(item.mesh);
   setHighlight(item, false); // records each mesh's base glow
@@ -227,7 +234,6 @@ function addItem(type, x, y, rot = 0, flip = false, size = null, locked = false)
 }
 
 function moveItem(item, x, y, rot = item.rot, flip = item.flip, size = item.size) {
-  cellsOf(item).forEach(([cx, cy]) => occupied.delete(key(cx, cy)));
   item.x = x;
   item.y = y;
   item.rot = rot;
@@ -245,13 +251,13 @@ function moveItem(item, x, y, rot = item.rot, flip = item.flip, size = item.size
     setHighlight(item, false);
     if (selected === item) outlinePass.selectedObjects = [item.mesh];
   }
-  cellsOf(item).forEach(([cx, cy]) => occupied.set(key(cx, cy), item.id));
+  markItem(item);
   applyTransform(item);
   scheduleSave();
 }
 
 function removeItem(item) {
-  cellsOf(item).forEach(([cx, cy]) => occupied.delete(key(cx, cy)));
+  outlines.delete(item.id);
   items.delete(item.id);
   tweens.delete(item.mesh);
   scene.remove(item.mesh);
@@ -380,7 +386,7 @@ function loadProgress() {
   if (!data || !Array.isArray(data.items)) return false;
   clearBoard();
   for (const s of data.items.map(upgradeEntry)) {
-    if (GADGETS[s.type] && canPlace(s.type, s.x, s.y, s.rot || 0, null, s.size || null)) addItem(s.type, s.x, s.y, s.rot || 0, !!s.flip, s.size || null);
+    if (GADGETS[s.type] && canPlace(s.type, s.x, s.y, s.rot || 0, null, s.size || null, !!s.flip)) addItem(s.type, s.x, s.y, s.rot || 0, !!s.flip, s.size || null);
   }
   // Skip a broken saved view (NaN is saved as null): Home fits the board instead.
   const v = data.view;
@@ -670,12 +676,13 @@ function pickItem(ev) {
 }
 
 function pickAnyItem(ev) {
-  // Gadgets never share a subgrid cell, so the cells a gadget takes up are
-  // its hit box: a thin domino is as easy to grab as its box.
+  // What's under the pointer: a gadget's outline, or failing that the
+  // nearest one within a little of it (a thin domino is still easy to grab).
   const p = pointerToWorld(ev);
   if (p) {
-    const id = occupied.get(key(Math.floor(p.x * SUB), Math.floor(p.y * SUB)));
-    if (id != null) return items.get(id);
+    for (const pad of [0, 0.05, 0.1, 0.15]) {
+      for (const [id, outline] of outlines) if (outlineContains(outline, p.x, p.y, pad)) return items.get(id);
+    }
   }
   // Parts outside the footprint (the pendulum's rope) still pick by mesh.
   // Only solid meshes count as hits: the edge lines would otherwise grab
@@ -715,6 +722,16 @@ function liftForTouch(ev) {
 function updateDrag(ev) {
   if (pinch) return;
   if (!drag) return;
+  if (drag.kind === 'handle') {
+    const p = pointerToWorld(ev);
+    if (!p) return;
+    const { item } = drag;
+    const size = GADGETS[item.type].dragHandle(item, drag.handle, p.y + drag.grab);
+    if (sameSize(size, item.size) || !canPlace(item.type, item.x, item.y, item.rot, item.id, size, !!item.flip)) return;
+    if (!drag.edited) { recordEdit(); drag.edited = true; } // one undo step per drag
+    moveItem(item, item.x, item.y, item.rot, item.flip, size); // rebuilds the mesh
+    return;
+  }
   if (drag.kind === 'pan') {
     if (follow && !follow.user) {
       // While the camera follows, a tap's wobble isn't a pan. A real drag
@@ -762,7 +779,7 @@ function endDrag(ev) {
   }
   if (d.kind === 'new') {
     scene.remove(d.ghost);
-    const spot = d.cell && nearestFree(d.type, d.cell.ax, d.cell.ay, d.rot);
+    const spot = d.cell && nearestFree(d.type, d.cell.ax, d.cell.ay, d.rot, null, null, null, d.flip);
     if (spot) {
       recordEdit();
       const item = addItem(d.type, spot.x, spot.y, d.rot, d.flip);
@@ -771,7 +788,7 @@ function endDrag(ev) {
     }
   } else if (d.kind === 'move') {
     const from = d.item.mesh.position.clone();
-    const spot = d.moved && d.cell && nearestFree(d.item.type, d.cell.ax, d.cell.ay, d.item.rot, d.item.id, d.item.size, d.item);
+    const spot = d.moved && d.cell && nearestFree(d.item.type, d.cell.ax, d.cell.ay, d.item.rot, d.item.id, d.item.size, d.item, !!d.item.flip);
     if (spot) {
       if (spot.x !== d.item.x || spot.y !== d.item.y) recordEdit();
       moveItem(d.item, spot.x, spot.y);
@@ -796,8 +813,15 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (playTap && ev.pointerType === 'touch') showPlayTap(ev);
   try { canvas.setPointerCapture(ev.pointerId); } catch {}
   canvas.classList.add('dragging');
-  if (item) {
-    const p = pointerToWorld(ev);
+  const p = item ? pointerToWorld(ev) : null;
+  const handle = p && GADGETS[item.type].handleAt?.(item, p.x, p.y, 0.15);
+  if (handle) {
+    // A part that drags on its own (a pulley's platform), straight up and down.
+    tweens.delete(item.mesh);
+    select(item);
+    const grab = GADGETS[item.type].handleTop(item, handle) - p.y;
+    drag = { kind: 'handle', item, handle, grab, edited: false };
+  } else if (item) {
     tweens.delete(item.mesh);
     const grab = p ? { x: item.x - p.x, y: item.y - p.y } : null;
     drag = { kind: 'move', item, grab, startX: ev.clientX, startY: ev.clientY, moved: false, cell: null };
@@ -816,10 +840,13 @@ window.addEventListener('pointermove', updateDrag);
 canvas.addEventListener('pointermove', (ev) => {
   if (ev.pointerType === 'touch') return;
   const hit = !drag && !playing ? pickAnyItem(ev) : null;
-  canvas.classList.toggle('hover', !!hit && !hit.locked);
+  const p = hit && !hit.locked && GADGETS[hit.type].handleAt ? pointerToWorld(ev) : null;
+  const onHandle = !!(p && GADGETS[hit.type].handleAt(hit, p.x, p.y, 0.15));
+  canvas.classList.toggle('hover', !!hit && !hit.locked && !onHandle);
+  canvas.classList.toggle('adjust', onHandle);
   canvas.classList.toggle('locked', !!hit && hit.locked);
 });
-canvas.addEventListener('pointerleave', () => canvas.classList.remove('hover'));
+canvas.addEventListener('pointerleave', () => canvas.classList.remove('hover', 'adjust'));
 window.addEventListener('pointerup', endDrag);
 // A cancelled gesture (the browser took it over, e.g. for a system swipe)
 // puts things back instead of placing.
@@ -833,6 +860,7 @@ function cancelDrag() {
   if (d.kind === 'new') scene.remove(d.ghost);
   else if (d.kind === 'move') applyTransform(d.item);
   else if (d.kind === 'pan') snapView();
+  // A handle's moves are already on the board, each a fit.
 }
 
 // Two fingers on the board pan, and zoom only on a clear pinch. A gesture
@@ -978,10 +1006,26 @@ function nextRotation(item, dir) {
 }
 
 // Where `item` sits after turning to `rot`, or null if it doesn't fit.
-// It turns about its own center, so a long thin piece spins in place; if
-// that spot is taken it keeps its bottom-left corner instead.
+// It turns about its own center, so a long thin piece spins in place (or
+// about the point its gadget names in `turnsAbout`); if that spot is taken
+// it keeps its bottom-left corner instead.
+// Where point (px, py) of a gadget's unturned box ends up in its box after
+// `rot` quarter turns counter-clockwise.
+function turnedPoint(type, size, rot, [px, py]) {
+  let { w, h } = footprintSize(type, 0, size);
+  for (let k = 0; k < ((rot % 4) + 4) % 4; k++) { [px, py] = [h - py, px]; [w, h] = [h, w]; }
+  return [px, py];
+}
+
 function turnedAnchor(item, rot) {
   const spots = [];
+  const about = GADGETS[item.type].turnsAbout;
+  if (about) {
+    // It turns about that point (the hammer's hinge), which stays put.
+    const [ox, oy] = turnedPoint(item.type, item.size, item.rot || 0, about);
+    const [nx, ny] = turnedPoint(item.type, item.size, rot, about);
+    spots.push({ x: item.x + ox - nx, y: item.y + oy - ny });
+  }
   if (!GADGETS[item.type].swing) {
     const was = footprintSize(item.type, item.rot, item.size), now = footprintSize(item.type, rot, item.size);
     spots.push({
@@ -990,7 +1034,7 @@ function turnedAnchor(item, rot) {
     });
   }
   spots.push({ x: item.x, y: item.y });
-  return spots.find((at) => canPlace(item.type, at.x, at.y, rot, item.id, item.size)) || null;
+  return spots.find((at) => canPlace(item.type, at.x, at.y, rot, item.id, item.size, !!item.flip)) || null;
 }
 
 // Where a resizable `item` ends up on its next Size step in `dir` (+1
@@ -1006,16 +1050,19 @@ function nextSize(item, dir) {
   // A third value is an offset (the seesaw's plank shifted on its fulcrum).
   const sizes = r.sizes.map(([w, h, off], step) => (off ? { w, h, off, step } : { w, h, step }));
   const was = item.size || NORMAL_SIZE;
-  const same = (z) => sameSize(z, was);
+  const same = (z) => sameShape(z, was);
   const at = sizes[was.step] && same(sizes[was.step]) ? was.step : sizes.findIndex(same);
   const old = footprintSize(item.type, item.rot, item.size);
   for (let k = 1; k <= sizes.length; k++) {
+    // (A new Size starts a pulley's platforms even again: the size list has no heights.)
     const size = sizes[(((at + dir * k) % sizes.length) + sizes.length) % sizes.length];
-    if (sameSize(size, was)) continue;
+    if (sameShape(size, was)) continue;
     const now = footprintSize(item.type, item.rot, size);
     // A bucket grows around its cavity: the cavity's middle and the floor
-    // stay put. Everything else grows from its bottom-left corner.
+    // stay put. A gadget marked `growsFromCenter` keeps its middle where it
+    // is. Everything else grows from its bottom-left corner.
     let bx = 0, by = 0;
+    if (GADGETS[item.type].growsFromCenter) { bx = (old.w - now.w) / 2; by = (old.h - now.h) / 2; }
     if (GADGETS[item.type].pivotX) bx = GADGETS[item.type].pivotX(was) - GADGETS[item.type].pivotX(size); // the fulcrum stays put
     if (GADGETS[item.type].cavity) {
       const r = (item.rot || 0) % 4; // floor: bottom, right, top, left
@@ -1023,9 +1070,12 @@ function nextSize(item, dir) {
       else { by = (old.h - now.h) / 2; if (r === 1) bx = old.w - now.w; }
     }
     const dx = Math.max(0, now.w - old.w), dy = Math.max(0, now.h - old.h);
-    for (const [ox, oy] of [[bx, by], [0, 0], [-dx, 0], [0, -dy], [-dx, -dy]]) {
+    // Next best for a centered one: its middle across kept, standing on the
+    // ground (growing round its middle would sink it).
+    const ground = [bx, Math.max(by, -item.y)];
+    for (const [ox, oy] of [[bx, by], ground, [0, 0], [-dx, 0], [0, -dy], [-dx, -dy]]) {
       const x = item.x + ox, y = item.y + oy;
-      if (y >= 0 && canPlace(item.type, x, y, item.rot, item.id, size)) return { size, x, y };
+      if (y >= 0 && canPlace(item.type, x, y, item.rot, item.id, size, !!item.flip)) return { size, x, y };
     }
   }
   return null;
@@ -1034,7 +1084,7 @@ function nextSize(item, dir) {
 // Nudge: move the selected gadget a quarter cell (dx, dy in quarters).
 function canNudge(item, dx, dy) {
   const x = item.x + dx / SUB, y = item.y + dy / SUB;
-  return y >= 0 && canPlace(item.type, x, y, item.rot, item.id, item.size);
+  return y >= 0 && canPlace(item.type, x, y, item.rot, item.id, item.size, !!item.flip);
 }
 function nudgeSelected(dx, dy) {
   if (!selected || playing || !canNudge(selected, dx, dy)) return;
@@ -1066,7 +1116,6 @@ function nextBall(item, dir) {
 
 // Swap a ball for another size in place (same id, so undo and selection keep working).
 function retypeItem(item, type, x, y) {
-  cellsOf(item).forEach(([cx, cy]) => occupied.delete(key(cx, cy)));
   scene.remove(item.mesh);
   tweens.delete(item.mesh);
   item.type = type;
@@ -1078,7 +1127,7 @@ function retypeItem(item, type, x, y) {
   storeRest(item.mesh);
   setHighlight(item, false);
   if (selected === item) outlinePass.selectedObjects = [item.mesh];
-  cellsOf(item).forEach(([cx, cy]) => occupied.set(key(cx, cy), item.id));
+  markItem(item);
   applyTransform(item);
   scheduleSave();
 }
@@ -1102,7 +1151,7 @@ function resizeSelected(dir = 1) {
   const next = nextSize(selected, dir);
   if (!next) return;
   recordEdit();
-  if (GADGETS[selected.type].pivotX) {
+  if (GADGETS[selected.type].glidesPlank) {
     // The seesaw's fulcrum doesn't move: only the plank glides (and turns)
     // from where it was to its new spot.
     const old = selected.mesh.getObjectByName('plank');
@@ -1151,9 +1200,11 @@ function flipSelected() {
     return;
   }
   if (!selected || playing || !GADGETS[selected.type].flippable) return;
+  const rot = mirroredRot(selected.rot);
+  // Mirrored, its outline changes (a ramp slopes the other way): it has to fit.
+  if (!canPlace(selected.type, selected.x, selected.y, rot, selected.id, selected.size, !selected.flip)) return;
   recordEdit();
   const from = selected.mesh.position.clone();
-  const rot = mirroredRot(selected.rot);
   moveItem(selected, selected.x, selected.y, rot, !selected.flip); // rebuilds the mesh
   // Squash through the middle across the screen: along the piece's own x
   // when it's level, its own y when it's turned a quarter.
@@ -1520,6 +1571,9 @@ function homeView() {
     for (const [cx, cy] of cellsOf(item)) {
       minX = Math.min(minX, cx / SUB); maxX = Math.max(maxX, (cx + 1) / SUB); maxY = Math.max(maxY, (cy + 1) / SUB);
     }
+    // And any part outside its box (a pulley platform dragged down low).
+    const box = outlines.get(item.id)?.box;
+    if (box) { minX = Math.min(minX, box[0]); maxX = Math.max(maxX, box[2]); maxY = Math.max(maxY, box[3]); }
   }
   // In a level, also leave room for where the parts go.
   for (const [type, x, y, rot, , size] of currentLevel()?.solution || []) {
@@ -1708,7 +1762,7 @@ function loadLevel(n) {
   clearBoard();
   for (const [type, x, y, rot, flip, size] of level.items) addItem(type, x, y, rot || 0, !!flip, size || null, true);
   for (const s of (levelBoards[level.name] || []).map(upgradeEntry)) {
-    if (GADGETS[s.type] && partsLeft(partType(s.type)) > 0 && canPlace(s.type, s.x, s.y, s.rot || 0, null, s.size || null)) {
+    if (GADGETS[s.type] && partsLeft(partType(s.type)) > 0 && canPlace(s.type, s.x, s.y, s.rot || 0, null, s.size || null, !!s.flip)) {
       addItem(s.type, s.x, s.y, s.rot || 0, !!s.flip, s.size || null);
     }
   }

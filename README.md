@@ -54,7 +54,7 @@ On the website, Clatter Lab uses [Level Lab Studio](../../platform/docs/STUDIO.m
 
 Which Level Lab it talks to comes from `?studio=` in the address: release (levellab.com) by default, or `?studio=dev` / `?studio=stage` for testing (sign in to that test site in the same browser first). Sign-in only works on studio.levellab.com.
 
-The **Examples** menu in the top bar loads ready-made contraptions (Domino Run, Seesaw Launch, Fan Elevator, Wrecking Ball, Bounce Alley, Launch & Catch, Plank Bridge, Bell Ringer). They live in `src/examples.js` as plain lists of `[type, x, y, rot]`.
+The **Examples** menu in the top bar loads ready-made contraptions (Domino Run, Seesaw Launch, Fan Elevator, Wrecking Ball, Bounce Alley, Launch & Catch, Plank Bridge, Bell Ringer, Pipe Shot, Spinner Drop, Hammer Time, Pulley Lift). They live in `src/examples.js` as plain lists of `[type, x, y, rot]`.
 
 ## Gadgets
 
@@ -73,6 +73,10 @@ The **Examples** menu in the top bar loads ready-made contraptions (Domino Run, 
 | Conveyor | 2×½ | Carries whatever sits on it, the way the arrow on its front points. Flip it to run the other way; Rotate to turn it |
 | Launcher | 1×½ | Fires whatever is on it shortly after Play, in the direction it faces |
 | Bell | 1×1 | Rings and swings when hit |
+| Pipe | 2×2 (Size: 3½×3½ or 1¼×1¼) | A curved tube that turns a rolling ball a quarter turn: in from the left along the top, out the bottom. Rotate and Flip for every other way. Its inside is exactly a ball wide and slippery (5% of the usual friction). Like the Ball, Size steps it ball (inside 1) → bowling ball (2) → marble (½); a smaller ball fits a bigger pipe too |
+| Spinner | 2×2 (Size: 3×3 or 4×4) | A cross on a pin that spins freely: whatever hits an arm turns it, and the next arm along knocks or turns back what comes after. Rotate switches it between + and ×; Size makes the arms longer (2, 3 or 4 tip to tip: round ends that just reach the box edge), keeping the pin where it is (on the ground, it keeps its place across and rises to clear the ground) |
+| Hammer | 1×2¾ (Size: 1×3¾ or 1×1¾) | Stands still until something hits it (its base counts too; something just resting against it doesn't), then falls away from whatever hit it and whacks what's on that side. Like the Ball, Size steps it medium → large → small: a longer or shorter handle, so it reaches farther or less far (the head lands about 2½, 3½ or 1½ out); the head is the same on every size, 1 wide like the base. Rotate turns it about its hinge, so the base stays put; turned, it still holds still until bumped |
+| Pulley | 3×4 (Size: 5×5½ or 1½×2½) | Two platforms on a rope over a solid wheel (things bounce off it; the platforms pass by it): push one down and the other comes up, so a heavy thing on one side lifts a light one on the other. Drag either platform up or down on its own while building (its top from level with the wheel's middle down to the ground: set the pulley up high for a longer drop), so a pulley can start uneven; the rope is as long as the two heights make it. Like the Ball, Size steps it medium → large → small, with platforms as wide as the ball, bowling ball or marble (wheels 1, 1½ and ½ across the middle); it keeps its middle and base, and the platforms start even again |
 | Star | 1×1 | The goal |
 
 ## How it's built
@@ -87,7 +91,7 @@ The **Examples** menu in the top bar loads ready-made contraptions (Domino Run, 
 | File | What |
 |---|---|
 | `vendor/libs.js` | Three.js + cannon-es, exposed as `THREE` and `CANNON` globals. |
-| `src/gadgets.js` | Gadget registry (code still says "gadget"). Each gadget has `makeMesh()` (looks), `makeBody()` (physics), a footprint box (`w`,`h`, multiples of ¼; an optional `footprint()` lists just the quarter cells it really fills) and an `offset` inside that box. Multi-part gadgets (seesaw, fan, pendulum) use `makeBodies(group)` to return several bodies plus constraints, and optional `onStep` / `onFrame` hooks. |
+| `src/gadgets.js` | Gadget registry (code still says "gadget"). Each gadget has `makeMesh()` (looks), `makeBody()` (physics), a footprint box (`w`,`h`, multiples of ¼; an optional `footprint()` lists just the quarter cells it really fills, used for framing the view) and an `offset` inside that box. Where gadgets may go is decided by their outlines, not their boxes: `outlineAt()` flattens a gadget's physics shapes onto the board (boxes and the ramp's wedge as polygons, balls as circles), and two gadgets fit anywhere their outlines don't overlap; touching is fine. So two spinners can sit close as long as their arms clear, and an upside-down ramp can share a cell with a ramp. Multi-part gadgets (seesaw, fan, pendulum) use `makeBodies(group)` to return several bodies plus constraints, and optional `onStep` / `onFrame` hooks. |
 | `src/main.js` | Scene, cameras, board state, drag/drop, play loop, sounds, Levels / Sandbox modes. |
 | `src/studio.js` | Level Lab sign-in, saving progress to the account, and share links (Studio). Loaded after `main.js`; `main.js` calls its `cloudSaved()` after each save. |
 | `src/levels.js` | The levels, easiest first: name, goal line, parts on offer, locked pieces, and one known solution (used only by the checker). The first level of each world names it (`world:`); the levels after it belong to it, up to the next one that names a world. |

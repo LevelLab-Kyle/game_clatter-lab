@@ -24,7 +24,7 @@ for (const f of files) {
   const full = path.resolve(root, f);
   if (fs.existsSync(full)) vm.runInContext(fs.readFileSync(full, 'utf8'), ctx, { filename: f });
 }
-const { GADGETS, buildWorld, placeMesh, footprintCells, stepFrame, partType, SUB } = vm.runInContext('({ GADGETS, buildWorld, placeMesh, footprintCells, stepFrame, partType, SUB })', ctx);
+const { GADGETS, buildWorld, placeMesh, outlineAt, outlinesOverlap, outlineBottom, OUTLINE_EPS, stepFrame, partType, SUB } = vm.runInContext('({ GADGETS, buildWorld, placeMesh, outlineAt, outlinesOverlap, outlineBottom, OUTLINE_EPS, stepFrame, partType, SUB })', ctx);
 const EXAMPLES = vm.runInContext('typeof EXAMPLES === "undefined" ? {} : EXAMPLES', ctx);
 const LEVELS = vm.runInContext('typeof LEVELS === "undefined" ? [] : LEVELS', ctx);
 
@@ -42,25 +42,29 @@ function toItems(list) {
 }
 
 // Overlapping pieces can't be built in the game, so they fail the check.
+// Pieces may touch; their outlines (outlineAt in src/gadgets.js) may not overlap.
+const outlineOfEntry = ([type, x, y, rot = 0, flip = false, size = null]) => outlineAt(type, x, y, rot, size, !!flip);
 function overlaps(list) {
-  const seen = new Map();
-  for (const [type, x, y, rot = 0, , size = null] of list) {
-    for (const [i, j] of footprintCells(type, x, y, rot, size)) {
-      if (j < 0) return `${type} at ${x},${y} is below the ground`;
-      const k = i + ',' + j;
-      if (seen.has(k)) return `${type} at ${x},${y} overlaps ${seen.get(k)}`;
-      seen.set(k, `${type} at ${x},${y}`);
-    }
+  const seen = [];
+  for (const entry of list) {
+    const [type, x, y] = entry;
+    const here = outlineOfEntry(entry);
+    if (outlineBottom(here) < -OUTLINE_EPS) return `${type} at ${x},${y} is below the ground`;
+    const hit = seen.find(([, there]) => outlinesOverlap(here, there));
+    if (hit) return `${type} at ${x},${y} overlaps ${hit[0]}`;
+    seen.push([`${type} at ${x},${y}`, here]);
   }
   return null;
 }
 
 // Where the game puts a part dropped with its corner at (ax, ay): the
 // nearest free quarter-cell spot. Same rule as nearestFree in src/main.js.
-function dropSpot(list, type, ax, ay, rot, size) {
-  const taken = new Set();
-  for (const [t, x, y, r = 0, , s = null] of list) for (const [i, j] of footprintCells(t, x, y, r, s)) taken.add(i + ',' + j);
-  const fits = (x, y) => footprintCells(type, x, y, rot, size).every(([i, j]) => j >= 0 && !taken.has(i + ',' + j));
+function dropSpot(list, type, ax, ay, rot, size, flip = false) {
+  const taken = list.map(outlineOfEntry);
+  const fits = (x, y) => {
+    const here = outlineAt(type, x, y, rot, size, !!flip);
+    return outlineBottom(here) >= -OUTLINE_EPS && !taken.some((there) => outlinesOverlap(here, there));
+  };
   const snap = (v) => Math.round(v * SUB) / SUB;
   const x0 = snap(ax), y0 = Math.max(0, snap(ay));
   const spots = [];
@@ -101,9 +105,11 @@ const trace = process.argv.includes('--trace'), traceFree = process.argv.include
 
 if (!only) {
   for (const [name, ex] of Object.entries(EXAMPLES)) {
-    const t = play(ex.items);
+    // Like a level, an example must be buildable: nothing overlapping or underground.
+    const bad = overlaps(ex.items);
+    const t = bad ? null : play(ex.items);
     if (t === null) failed++;
-    console.log(`${t === null ? 'FAIL' : 'ok  '}  example  ${name}${t === null ? '' : `  (${t}s)`}`);
+    console.log(`${t === null ? 'FAIL' : 'ok  '}  example  ${name}${t === null ? (bad ? `  — ${bad}` : '') : `  (${t}s)`}`);
   }
 }
 
@@ -137,9 +143,9 @@ LEVELS.forEach((lv, n) => {
   // A part dropped from the tray onto its answer spot must land exactly
   // there (see dropSpot), so the player can build the answer by dragging.
   lv.solution.forEach((part, k) => {
-    const [type, x, y, rot = 0, , size = null] = part;
+    const [type, x, y, rot = 0, flip = false, size = null] = part;
     const others = [...lv.items, ...lv.solution.filter((_, j) => j !== k)];
-    const spot = dropSpot(others, type, x, y, rot, size);
+    const spot = dropSpot(others, type, x, y, rot, size, flip);
     if (!spot || spot.x !== x || spot.y !== y) problems.push(`${type} dropped at ${x},${y} lands at ${spot ? spot.x + ',' + spot.y : 'nowhere'}`);
   });
   if (problems.length) failed++;

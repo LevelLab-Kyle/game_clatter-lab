@@ -92,4 +92,42 @@ const EXAMPLES = {
       ['star', 8, 1],
     ],
   },
+
+  'Pipe Shot': {
+    blurb: 'A marble drops into a pipe. The pipe turns it. It shoots out to the star.',
+    items: [
+      ['marble', 2.25, 5],
+      ['pipe', 2, 0, 1, true],
+      ['star', 6, 0],
+    ],
+  },
+
+  'Spinner Drop': {
+    blurb: 'A marble lands on a spinner. The spinner turns. The marble rolls off to the star.',
+    items: [
+      ['marble', 3.25, 4],
+      ['spinner', 2, 0, 1], // x
+      ['star', 6, 0],
+    ],
+  },
+
+  'Hammer Time': {
+    blurb: 'A marble bumps the hammer. The hammer falls. It knocks down the dominoes.',
+    items: [
+      ['block', 0, 0, 0, false, { w: 2, h: 2 }], ['ramp', 0, 2, 0, false, { w: 2, h: 1 }], ['marble', 0, 3],
+      ['hammer', 3, 0],
+      ['domino', 5.5, 0], ['domino', 6.5, 0], ['domino', 7.5, 0],
+      ['star', 8.25, 0],
+    ],
+  },
+
+  'Pulley Lift': {
+    blurb: 'The pulley starts uneven. The ball is heavy. It pulls its side down. The marble goes up into the star.',
+    items: [
+      ['pulley', 2, 0, 0, false, { w: 1, h: 1, left: 1, right: 0.25 }],
+      ['ball', 2, 1],
+      ['marble', 4, 0.25],
+      ['star', 4, 1.25],
+    ],
+  },
 };

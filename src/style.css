@@ -423,6 +423,7 @@ body.loading #loader { display: flex; }
 }
 #scene.dragging { cursor: grabbing; }
 #scene.hover { cursor: pointer; }
+#scene.adjust { cursor: ns-resize; } /* over a part that drags up and down (a pulley's platform) */
 #scene.locked { cursor: not-allowed; } /* a level's own pieces stay put */
 
 /* Floating rotate/delete tools above the selected gadget */

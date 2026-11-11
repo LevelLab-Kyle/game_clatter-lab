@@ -307,7 +307,7 @@ async function openSharedBoard(shareId) {
     if (items.size) recordEdit();
     clearBoard();
     for (const s of shared.data.items.map(upgradeEntry)) {
-      if (GADGETS[s.type] && canPlace(s.type, s.x, s.y, s.rot || 0, null, s.size || null)) {
+      if (GADGETS[s.type] && canPlace(s.type, s.x, s.y, s.rot || 0, null, s.size || null, !!s.flip)) {
         addItem(s.type, s.x, s.y, s.rot || 0, !!s.flip, s.size || null);
       }
     }

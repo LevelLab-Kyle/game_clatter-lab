@@ -109,7 +109,13 @@ const MATS = {
   marble: new CANNON.Material('marble'),
   bouncy: new CANNON.Material('bouncy'),
   bell: new CANNON.Material('bell'),
+  pipe: new CANNON.Material('pipe'),
 };
+
+// How grippy everything is. Every contact below is a multiple of this, so
+// changing it (a future player setting) changes them all in step; it's read
+// each time a run starts.
+let FRICTION = 0.4;
 
 const ROLLER_SPIN = 6; // conveyor roller spin, radians per second (see conveyor.onFrame)
 
@@ -280,6 +286,7 @@ const GADGETS = {
   seesaw: {
     name: 'Seesaw',
     w: 3, h: 0.75,
+    glidesPlank: true, // on Size, only the plank glides to its new spot (resizeSelected)
     // Size: 3 wide, 4 wide, then 3 wide with the plank shifted half a cell
     // left or right of the fulcrum (a size's third value, `off`, is how far
     // the plank sits right of the fulcrum). The fulcrum stays put.
@@ -672,22 +679,380 @@ const GADGETS = {
     },
     offset: () => new THREE.Vector3(0.5, 0, 0),
   },
+
+  // A cross on a pin that spins freely: whatever hits an arm turns it, and
+  // the next arm along knocks or turns back what comes after. Rotate sets it
+  // + or x (a cross looks the same after any quarter turn, so those are its
+  // only two ways); Size makes the arms longer.
+  spinner: {
+    name: 'Spinner',
+    w: 2, h: 2,
+    rotatable: true,
+    poses: [0, 1].map((rot) => ({ rot, flip: false })), // + then x
+    resizable: { sizes: [[1, 1], [1.5, 1.5], [2, 2]] }, // boxes 2, 3 and 4 wide
+    growsFromCenter: true, // Size keeps the pin where it is (see nextSize)
+    // Each arm ends in a round end whose edge sits on the box edge (a grid
+    // line); the flat arm runs to that round end's middle (see spinnerCross).
+    arm: (item) => 2 * ((item?.size?.w || 1) - ARM_T / 2),
+    // The board turns the whole spinner rot quarter turns; the cross then
+    // sits 45° on for x. (A quarter turn plus 45° looks the same as 45°.)
+    applyRot(item) {
+      const cross = item.mesh.getObjectByName('cross');
+      cross.rotation.z = (item.rot || 0) % 2 ? Math.PI / 4 : 0;
+      if (cross.userData.rest) cross.userData.rest.q.copy(cross.quaternion);
+    },
+    makeMesh(item) {
+      const g = new THREE.Group();
+      g.userData.arm = this.arm(item);
+      g.userData.capTo = item?.size?.w || 1; // the box edge, from the middle
+      g.add(shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.7, 16).rotateX(Math.PI / 2), standard(0x5a6b7a))));
+      const cross = spinnerCross(0x4fc3a1, 'cross', g.userData.capTo);
+      cross.rotation.z = (item?.rot || 0) % 2 ? Math.PI / 4 : 0;
+      g.add(cross);
+      return g;
+    },
+    makeBodies(g) {
+      const hub = new CANNON.Body({ mass: 0 });
+      const cross = spinnerBody(g.userData.arm, g.userData.capTo);
+      return {
+        parts: [{ body: hub, mesh: null }, { body: cross, mesh: g.getObjectByName('cross') }],
+        constraints: [pinned(hub, cross, new CANNON.Vec3(0, 0, 0))],
+      };
+    },
+    offset: () => new THREE.Vector3(1, 1, 0),
+  },
+
+  // Stands still until something bumps it, then falls away from whatever
+  // hit it and whacks what's on that side.
+  hammer: {
+    name: 'Hammer',
+    w: 1, h: 2.75,
+    rotatable: true, // turned, it still holds still until bumped, then swings away from the hitter
+    turnsAbout: [0.5, 0.25], // Rotate turns it about its hinge, so the base stays put (see turnedAnchor)
+    // Like the Ball, Size steps it medium -> large -> small: a longer or
+    // shorter handle, so it reaches farther or less far. The head is the
+    // same on every size.
+    resizable: { sizes: [[1, 1], [1, 3.75 / 2.75], [1, 1.75 / 2.75]] },
+    pivotY: 0.25, // the hinge, on top of the base
+    // Each size's height; the head is always 1 wide, like the base, and weighs 2.
+    dims(item) {
+      const k = item?.size?.h || 1;
+      const h = k < 0.9 ? 1.75 : k > 1.1 ? 3.75 : 2.75;
+      return { h, head: 1, mass: 2 };
+    },
+    makeMesh(item) {
+      const d = this.dims(item);
+      const headY = d.h - 0.25; // the head's middle
+      const g = new THREE.Group();
+      g.userData.hammer = { ...d, headY };
+      g.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(1, 0.25, 0.6), standard(0x8a7f6a))).translateY(0.125));
+      const mallet = named(new THREE.Group(), 'mallet');
+      mallet.position.y = headY;
+      mallet.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(d.head, 0.5, 0.6), standard(0xb5523b))));
+      const handle = headY - 0.25 - this.pivotY;
+      mallet.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.2, handle, 0.3), standard(0xc98f4a))).translateY(-0.25 - handle / 2));
+      g.add(mallet);
+      return g;
+    },
+    makeBodies(g) {
+      const { head, mass, headY } = g.userData.hammer;
+      const base = new CANNON.Body({ mass: 0, material: MATS.surface });
+      base.addShape(new CANNON.Box(new CANNON.Vec3(0.5, 0.125, 0.3)), new CANNON.Vec3(0, 0.125, 0));
+      // Kinematic (it holds still) until something bumps it; see onStep.
+      // The ball's material: a hard head glances off what it hits instead of gripping it.
+      const mallet = lockToPlane(new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC, material: MATS.marble }));
+      // The handle's body stops short of the hinge, so its corners don't
+      // drag on the base as it swings.
+      const handle = headY - 0.25 - this.pivotY - 0.25;
+      mallet.addShape(new CANNON.Box(new CANNON.Vec3(head / 2, 0.25, 0.3)));
+      mallet.addShape(new CANNON.Box(new CANNON.Vec3(0.1, handle / 2, 0.15)), new CANNON.Vec3(0, -0.25 - handle / 2, 0));
+      const hinge = new CANNON.HingeConstraint(base, mallet, {
+        pivotA: new CANNON.Vec3(0, this.pivotY, 0), axisA: Z_AXIS,
+        pivotB: new CANNON.Vec3(0, this.pivotY - headY, 0), axisB: Z_AXIS,
+      });
+      // A bump anywhere, the base too (a ball rolling along the ground hits
+      // that first), sets it falling away from the hitter: which side of the
+      // handle it came from, in the hammer's own (maybe turned) frame.
+      // Straight on, it goes one way.
+      const bumped = (ev) => {
+        if (mallet.type !== CANNON.Body.KINEMATIC || ev.body.mass === 0 || mallet.userData) return;
+        // A real hit, not just something resting against it from the start.
+        if (Math.abs(ev.contact.getImpactVelocityAlongNormal()) < 0.5) return;
+        const rel = mallet.quaternion.inverse().vmult(ev.body.position.vsub(mallet.position));
+        mallet.userData = { fall: rel.x > 0.05 ? 1 : -1, mass };
+      };
+      mallet.addEventListener('collide', bumped);
+      base.addEventListener('collide', bumped);
+      return {
+        parts: [{ body: base, mesh: null }, { body: mallet, mesh: g.getObjectByName('mallet') }],
+        constraints: [hinge],
+      };
+    },
+    onStep(item) {
+      const mallet = item.parts?.[1]?.body;
+      if (!mallet?.userData?.fall || mallet.type !== CANNON.Body.KINEMATIC) return;
+      mallet.type = CANNON.Body.DYNAMIC;
+      mallet.mass = mallet.userData.mass;
+      mallet.updateMassProperties();
+      mallet.angularVelocity.z = 2.5 * mallet.userData.fall; // a firm nudge over the top, away from the hitter
+      mallet.wakeUp();
+    },
+    offset: () => new THREE.Vector3(0.5, 0, 0),
+  },
+
+  // A curved tube that turns a rolling ball a quarter turn: in from the left
+  // along the top, out the bottom. Rotate and Flip for every other way. Its
+  // inside is exactly a ball wide, and slippery (5% of the usual friction). Like the Ball, Size steps it ball (inside 1) -> bowling ball (2)
+  // -> marble (½), each in the same proportions: walls a quarter thick, the
+  // inner one curving round the bottom-left corner at half the inside's width.
+  pipe: {
+    name: 'Pipe',
+    w: 2, h: 2,
+    // Its wall pieces run a touch long to leave no gaps; its outline stops
+    // at its box, so it sits flush on the ground and against neighbours.
+    clipOutline: true,
+    rotatable: true,
+    flippable: true,
+    // Box side = 1.5 x inside + ½: 2 (ball), 3½ (bowling ball), 1¼ (marble).
+    resizable: { sizes: [[1, 1], [1.75, 1.75], [0.625, 0.625]] },
+    // The wall radii [inner, outer] for a pipe of this size.
+    walls(item) {
+      const side = 2 * (item?.size?.w || 1);
+      const bore = (side - 0.5) / 1.5;
+      const r = bore / 2;
+      return [[r, r + 0.25], [r + 0.25 + bore, side]];
+    },
+    makeMesh(item) {
+      const g = new THREE.Group();
+      const flip = item?.flip ? -1 : 1;
+      const half = (item?.size?.w || 1); // half the box side
+      for (const [r0, r1] of this.walls(item)) {
+        const shape = new THREE.Shape();
+        shape.absarc(0, 0, r1, 0, Math.PI / 2, false);
+        shape.absarc(0, 0, r0, Math.PI / 2, 0, true);
+        const geo = new THREE.ExtrudeGeometry(shape, { depth: 1, bevelEnabled: false, curveSegments: 24 });
+        geo.translate(-half, -half, -0.5);
+        if (flip < 0) { geo.scale(-1, 1, 1); geo.computeVertexNormals(); }
+        g.add(shadowed(new THREE.Mesh(geo, standard(0x7fa6c9, { side: THREE.DoubleSide }))));
+      }
+      return g;
+    },
+    makeBody(item) {
+      const flip = item?.flip ? -1 : 1;
+      const half = (item?.size?.w || 1);
+      const body = new CANNON.Body({ mass: 0, material: MATS.pipe });
+      // Each wall as a fan of short boxes along its arc.
+      const n = 16;
+      for (const [r0, r1] of this.walls(item)) {
+        const r = (r0 + r1) / 2, t = (r1 - r0) / 2;
+        const len = r * (Math.PI / 2) / n * 1.15; // a touch long so there are no gaps
+        for (let k = 0; k < n; k++) {
+          const a = (k + 0.5) / n * Math.PI / 2;
+          const q = new CANNON.Quaternion().setFromAxisAngle(Z_AXIS, flip * (a + Math.PI / 2));
+          body.addShape(new CANNON.Box(new CANNON.Vec3(len / 2, t, 0.5)), new CANNON.Vec3(flip * (r * Math.cos(a) - half), r * Math.sin(a) - half, 0), q);
+        }
+      }
+      return body;
+    },
+    offset: () => new THREE.Vector3(1, 1, 0),
+  },
+
+  // Two platforms on a rope over a wheel: push one down and the other comes
+  // up. A heavy thing on one side lifts a light one on the other. Each
+  // platform can be dragged up or down on its own while building, from
+  // level with the wheel's middle down to the ground (so a pulley set up high has a long
+  // drop), and a pulley can start uneven: the rope is as long as the two
+  // heights make it. The heights ride in `size` as { left, right }, beside
+  // its Size, so they save, undo and share like the rest.
+  pulley: {
+    name: 'Pulley',
+    w: 3, h: 4,
+    // Like the Ball, Size steps it medium -> large -> small, each with
+    // platforms as wide as that ball (the ball, bowling ball, marble).
+    // Widths 3, 5 and 1½; heights 4, 5½ and 2½.
+    resizable: { sizes: [[1, 1], [5 / 3, 1.375], [0.5, 0.625]] },
+    // Size keeps its middle across and its base where they are.
+    pivotX: (size) => 1.5 * (size?.w || 1),
+    // Each size's wheel radius, platform width, the wheel's middle (where the
+    // ropes leave it: the highest a platform's top goes) and the platforms'
+    // tops to begin with.
+    dims(item) {
+      const w = item?.size?.w || 1;
+      if (w < 0.75) return { r: 0.5, plat: 0.5, wheelY: 1.75, start: 0.75 };
+      if (w > 1.25) return { r: 1.5, plat: 2, wheelY: 3.75, start: 2.5 };
+      return { r: 1, plat: 1, wheelY: 2.75, start: 1.5 };
+    },
+    // The lowest a platform's top goes, from the pulley's base: resting on the ground.
+    minTop: (item) => 0.25 - item.y,
+    idleFrame: true, // keep the ropes drawn while editing
+    tops(item) {
+      const { start } = this.dims(item);
+      return [item?.size?.left ?? start, item?.size?.right ?? start];
+    },
+    // Handles: parts that drag on their own while building (see main.js).
+    // Which platform (if any) is at board point (px, py), give or take `pad`.
+    handleAt(item, px, py, pad = 0) {
+      const { r, plat } = this.dims(item);
+      const mid = item.x + 1.5 * (item.size?.w || 1), tops = this.tops(item);
+      for (const [k, side] of ['left', 'right'].entries()) {
+        const x0 = mid + (k ? r : -r) - plat / 2, top = item.y + tops[k];
+        if (px >= x0 - pad && px <= x0 + plat + pad && py >= top - 0.25 - pad && py <= top + pad) return side;
+      }
+      return null;
+    },
+    // The pulley with platform `side`'s top at board height `py` (the grab
+    // point), on the quarter grid and within its travel.
+    dragHandle(item, side, py) {
+      const top = THREE.MathUtils.clamp(Math.round((py - item.y) * SUB) / SUB, this.minTop(item), this.dims(item).wheelY);
+      const [left, right] = this.tops(item);
+      const { w = 1, h = 1 } = item.size || {};
+      return { w, h, left, right, [side]: top };
+    },
+    handleTop(item, side) { return item.y + this.tops(item)[side === 'left' ? 0 : 1]; },
+    makeMesh(item) {
+      const d = this.dims(item);
+      const g = new THREE.Group();
+      g.userData.pulley = d;
+      const wheel = named(new THREE.Group(), 'wheel');
+      wheel.position.set(0, d.wheelY, 0);
+      // An open wheel: rim, spokes and hub, so you can see through it.
+      const metal = standard(0x9a9aa8, { metalness: 0.3 });
+      wheel.add(shadowed(new THREE.Mesh(new THREE.TorusGeometry(d.r - 0.08, 0.08, 10, 40), metal)));
+      for (let k = 0; k < 3; k++) {
+        const spoke = shadowed(new THREE.Mesh(new THREE.BoxGeometry(2 * d.r - 0.2, 0.08, 0.12), metal));
+        spoke.rotation.z = (k * Math.PI) / 3;
+        wheel.add(spoke);
+      }
+      wheel.add(shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.3, 16).rotateX(Math.PI / 2), standard(0x5a6b7a))));
+      g.add(wheel);
+      const tops = this.tops(item);
+      for (const [k, side] of [-1, 1].entries()) {
+        const plat = named(shadowed(new THREE.Mesh(new THREE.BoxGeometry(d.plat, 0.25, 0.8), standard(0x6f8f4a))), `plat${side}`);
+        plat.position.set(side * d.r, tops[k] - 0.125, 0);
+        g.add(plat);
+        g.add(named(shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 8), standard(0x333333))), `rope${side}`));
+      }
+      this.onFrame({ mesh: g });
+      return g;
+    },
+    makeBodies(g) {
+      // The wheel is solid: things bounce off it, nothing can be built
+      // through it, and it's easy to grab. The platforms pass by it.
+      const { r, wheelY } = g.userData.pulley;
+      const wheel = new CANNON.Body({ mass: 0, material: MATS.surface, collisionFilterGroup: WHEEL_GROUP });
+      wheel.addShape(new CANNON.Sphere(r), new CANNON.Vec3(0, wheelY, 0));
+      const parts = [];
+      for (const side of [-1, 1]) {
+        const w = g.userData.pulley.plat;
+        const plat = new CANNON.Body({ mass: 0.5 * w, shape: new CANNON.Box(new CANNON.Vec3(w / 2, 0.125, 0.4)), material: MATS.surface });
+        plat.linearFactor.set(0, 1, 0); // straight up and down
+        plat.angularFactor.set(0, 0, 0);
+        // It passes over the ground: the rope stops it there instead (onStep).
+        // Resting on the ground, it would be pushed up and tug the rope.
+        plat.collisionFilterMask = ~(GROUND_GROUP | WHEEL_GROUP);
+        parts.push({ body: plat, mesh: g.getObjectByName(`plat${side}`) });
+      }
+      parts.push({ body: wheel, mesh: null });
+      return { parts, constraints: [] };
+    },
+    onStep(item) {
+      // The rope: one platform goes down exactly as fast as the other goes
+      // up. Share their momentum every step, and hold their heights to the
+      // rope's length and the travel limits.
+      const [a, b] = [item.parts?.[0]?.body, item.parts?.[1]?.body];
+      if (!a || !b) return;
+      a.userData ??= { rope: a.position.y + b.position.y }; // the rope's length: fixed per run
+      const rope = a.userData.rope;
+      const v = (a.mass * a.velocity.y - b.mass * b.velocity.y) / (a.mass + b.mass);
+      a.velocity.y = v;
+      b.velocity.y = -v;
+      const lo = 0.125, hi = item.y + this.dims(item).wheelY - 0.125; // centres: on the ground, level with the wheel's middle
+      // Share any stretch or slack evenly between the two sides (one side
+      // taking it all would make them creep), then keep both in range.
+      const slack = a.position.y + b.position.y - rope;
+      const lowA = Math.max(lo, rope - hi), highA = Math.min(hi, rope - lo); // a's range, the rope keeping b in its own
+      const ya = THREE.MathUtils.clamp(a.position.y - slack / 2, lowA, highA);
+      // At a limit, stop only if still heading past it: a platform resting on
+      // the ground must still be pulled up when the other side goes down.
+      if ((ya <= lowA && v < 0) || (ya >= highA && v > 0)) { a.velocity.y = 0; b.velocity.y = 0; }
+      a.position.y = ya;
+      b.position.y = rope - ya;
+    },
+    onFrame(item) {
+      // Ropes from the wheel's sides down to the platforms; the wheel turns
+      // as they move during a run.
+      const g = item.mesh;
+      for (const side of [-1, 1]) {
+        const plat = g.getObjectByName(`plat${side}`), rope = g.getObjectByName(`rope${side}`);
+        const { r, wheelY: top } = g.userData.pulley, bottom = plat.position.y + 0.125;
+        rope.position.set(side * r, (top + bottom) / 2, 0);
+        rope.scale.y = Math.max(0.01, top - bottom);
+      }
+      const left = g.getObjectByName('plat-1');
+      // The left rope rises with its platform, carrying the wheel's left edge
+      // up: that's a clockwise turn (negative about z).
+      g.getObjectByName('wheel').rotation.z = left.userData.rest ? -(left.position.y - left.userData.rest.p.y) / g.userData.pulley.r : 0;
+    },
+    offset: () => new THREE.Vector3(1.5, 0, 0),
+  },
 };
 
-// Rope needs drawing before play too.
-GADGETS.pendulum._makeMesh = GADGETS.pendulum.makeMesh;
-GADGETS.pendulum.makeMesh = function () {
-  const g = this._makeMesh();
-  this.onFrame({ mesh: g });
-  return g;
-};
-
+// The spinner's cross: two flat arms, each ending in a round end whose edge
+// reaches exactly `capTo` from the middle (the spinner's box edge), so a tip
+// only just touches the ground or a neighbour, and slides past instead of
+// digging in the way a square corner would.
+const ARM_T = 0.2; // arm thickness
+const capAt = (capTo) => capTo - ARM_T / 2; // the round end's middle
+function spinnerCross(color, name, capTo) {
+  // One piece: a plus with round ends, so the only outline is its outside.
+  const cross = named(new THREE.Group(), name);
+  cross.add(shadowed(new THREE.Mesh(roundCrossGeometry(capAt(capTo), ARM_T / 2, 0.6), standard(color))));
+  return cross;
+}
+// A plus, arms `t` either side of their middle line, each ending in a half
+// circle centred `len` from the middle; `depth` thick.
+function roundCrossGeometry(len, t, depth) {
+  const s = new THREE.Shape();
+  s.moveTo(t, t);
+  s.lineTo(len, t);
+  s.absarc(len, 0, t, Math.PI / 2, -Math.PI / 2, true); // right end
+  s.lineTo(t, -t);
+  s.lineTo(t, -len);
+  s.absarc(0, -len, t, 0, -Math.PI, true); // bottom end
+  s.lineTo(-t, -t);
+  s.lineTo(-len, -t);
+  s.absarc(-len, 0, t, -Math.PI / 2, -3 * Math.PI / 2, true); // left end
+  s.lineTo(-t, t);
+  s.lineTo(-t, len);
+  s.absarc(0, len, t, Math.PI, 0, true); // top end
+  s.lineTo(t, t);
+  const geo = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false, curveSegments: 12 });
+  geo.translate(0, 0, -depth / 2);
+  return geo;
+}
+function spinnerBody(arm, capTo) {
+  const body = lockToPlane(new CANNON.Body({ mass: 0.6 * arm / 1.75, material: MATS.surface })); // longer arms weigh more
+  body.angularDamping = 0.3;
+  for (const a of [0, Math.PI / 2]) {
+    body.addShape(new CANNON.Box(new CANNON.Vec3(arm / 2, ARM_T / 2, 0.3)), new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion().setFromAxisAngle(Z_AXIS, a));
+    for (const end of [-1, 1]) {
+      // A hair smaller than it looks, so a tip that just touches the ground
+      // never rubs on it (a touching contact still has friction).
+      body.addShape(new CANNON.Sphere(ARM_T / 2 - 0.01), new CANNON.Vec3(end * capAt(capTo) * Math.cos(a), end * capAt(capTo) * Math.sin(a), 0));
+    }
+  }
+  return body;
+}
+// Turns about a pin through both bodies' origins.
+function pinned(a, b, pivot) {
+  return new CANNON.HingeConstraint(a, b, { pivotA: pivot, axisA: Z_AXIS, pivotB: new CANNON.Vec3(0, 0, 0), axisB: Z_AXIS });
+}
 // The Ball's sizes, smallest first: Size steps through them. In a level's
 // parts, `ball` stands for a ball of any size.
 const BALL_SIZES = ['marble', 'ball', 'bowling'];
 const partType = (type) => (BALL_SIZES.includes(type) ? 'ball' : type);
 
-const GADGET_ORDER = ['ball', 'domino', 'plank', 'ramp', 'block', 'bucket', 'seesaw', 'bouncer', 'conveyor', 'launcher', 'fan', 'pendulum', 'bell', 'star'];
+const GADGET_ORDER = ['ball', 'domino', 'plank', 'ramp', 'block', 'bucket', 'seesaw', 'bouncer', 'conveyor', 'launcher', 'fan', 'pendulum', 'bell', 'pipe', 'spinner', 'hammer', 'pulley', 'star'];
 
 // A resizable gadget's `size` scales its normal width and height separately
 // ({ w, h }); null means its normal size.
@@ -698,7 +1063,9 @@ const sizeOf = (type, size) => (GADGETS[type].resizable && size) || NORMAL_SIZE;
 function footprintSize(type, rot = 0, size = null) {
   const def = GADGETS[type];
   const k = sizeOf(type, size);
-  const w = def.w * k.w, h = def.h * k.h;
+  // Rounded: a size given as a fraction (3.75 / 2.75) must come out exactly
+  // on the grid, not a hair off it.
+  const w = Math.round(def.w * k.w * 1e6) / 1e6, h = Math.round(def.h * k.h * 1e6) / 1e6;
   if (def.swing) return { w, h }; // swinging gadgets never turn
   return rot % 2 ? { w: h, h: w } : { w, h };
 }
@@ -764,6 +1131,10 @@ function footprintCells(type, x, y, rot = 0, size = null) {
 // a good way into the ground in one step, and the push back out stopped it
 // dead. stepFrame advances one 1/60 s frame (used by scripted runs).
 const PHYSICS_STEP = 1 / 120;
+// Collision groups, so a pulley's platforms can pass over the ground and
+// by their own wheel.
+const GROUND_GROUP = 4;
+const WHEEL_GROUP = 8;
 function stepFrame(world) {
   world.step(PHYSICS_STEP);
   world.step(PHYSICS_STEP);
@@ -773,19 +1144,24 @@ function buildWorld(items, hooks = {}) {
   // No sleeping: a slowly leaning domino wouldn't wake a sleeping neighbour.
   // Pieces are about a metre big, so real gravity feels sluggish. Crank it up for a toy feel.
   const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -30, 0), allowSleep: false });
-  world.defaultContactMaterial.friction = 0.4;
+  // Friction, as multiples of FRICTION.
+  const f = (k) => k * FRICTION;
+  world.defaultContactMaterial.friction = f(1);
   world.defaultContactMaterial.restitution = 0.05;
   // Dominoes grip the floor so they tip rather than slide. Between dominoes
   // friction must be exactly 0: any friction at all makes a leaning row of
   // dominoes lock up in cannon-es instead of toppling along.
-  world.addContactMaterial(new CANNON.ContactMaterial(MATS.domino, MATS.surface, { friction: 1.0, restitution: 0.0 }));
-  world.addContactMaterial(new CANNON.ContactMaterial(MATS.domino, MATS.domino, { friction: 0.0, restitution: 0.1 }));
-  world.addContactMaterial(new CANNON.ContactMaterial(MATS.marble, MATS.surface, { friction: 0.4, restitution: 0.1 }));
-  world.addContactMaterial(new CANNON.ContactMaterial(MATS.marble, MATS.domino, { friction: 0.0, restitution: 0.1 }));
-  world.addContactMaterial(new CANNON.ContactMaterial(MATS.marble, MATS.bouncy, { friction: 0.3, restitution: 0.95 }));
-  world.addContactMaterial(new CANNON.ContactMaterial(MATS.domino, MATS.bouncy, { friction: 0.3, restitution: 0.6 }));
+  world.addContactMaterial(new CANNON.ContactMaterial(MATS.domino, MATS.surface, { friction: f(2.5), restitution: 0.0 }));
+  world.addContactMaterial(new CANNON.ContactMaterial(MATS.domino, MATS.domino, { friction: 0, restitution: 0.1 }));
+  world.addContactMaterial(new CANNON.ContactMaterial(MATS.marble, MATS.surface, { friction: f(1), restitution: 0.1 }));
+  world.addContactMaterial(new CANNON.ContactMaterial(MATS.marble, MATS.domino, { friction: 0, restitution: 0.1 }));
+  world.addContactMaterial(new CANNON.ContactMaterial(MATS.marble, MATS.bouncy, { friction: f(0.75), restitution: 0.95 }));
+  world.addContactMaterial(new CANNON.ContactMaterial(MATS.domino, MATS.bouncy, { friction: f(0.75), restitution: 0.6 }));
+  // A pipe's inside is exactly a ball wide: barely any friction. (Even this
+  // little is enough for a ball to roll round the bend rather than slide.)
+  world.addContactMaterial(new CANNON.ContactMaterial(MATS.marble, MATS.pipe, { friction: f(0.05), restitution: 0.05 }));
 
-  const ground = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: MATS.surface });
+  const ground = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: MATS.surface, collisionFilterGroup: GROUND_GROUP });
   ground.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
   world.addBody(ground);
 
@@ -817,6 +1193,140 @@ function buildWorld(items, hooks = {}) {
     if (def.goal && hooks.onGoal) built.parts[0].body.addEventListener('collide', () => hooks.onGoal(item));
   }
   return world;
+}
+
+// ---------------------------------------------------------------------------
+// Outlines: where a gadget really is, for placing things. Made from its
+// physics shapes, flattened onto the board: boxes and the ramp's wedge
+// become polygons, balls (and round ends) circles. Two gadgets fit side by
+// side wherever their outlines don't overlap; just touching is fine. Worked
+// out once for each shape, size, turn and flip at (0, 0), then moved.
+// ---------------------------------------------------------------------------
+
+const OUTLINE_EPS = 1e-3; // overlaps thinner than this are touching
+const _outlines = new Map();
+function localOutline(type, rot = 0, size = null, flip = false) {
+  const k = `${type}|${rot}|${size ? JSON.stringify(size) : ''}|${flip ? 1 : 0}`;
+  let shapes = _outlines.get(k);
+  if (shapes) return shapes;
+  const def = GADGETS[type];
+  const item = { type, x: 0, y: 0, rot, size, flip };
+  item.mesh = def.makeMesh(item);
+  placeMesh(item);
+  item.mesh.updateMatrixWorld(true);
+  const parts = def.makeBodies ? def.makeBodies(item.mesh).parts : [{ body: def.makeBody(item), mesh: item.mesh }];
+  const box = footprintSize(type, rot, size); // for clipOutline
+  shapes = [];
+  const bp = new THREE.Vector3(), bq = new THREE.Quaternion(), sq = new THREE.Quaternion(), v = new THREE.Vector3();
+  for (const part of parts) {
+    (part.mesh || item.mesh).getWorldPosition(bp);
+    (part.mesh || item.mesh).getWorldQuaternion(bq);
+    part.body.shapes.forEach((shape, i) => {
+      const o = part.body.shapeOffsets[i], oq = part.body.shapeOrientations[i];
+      sq.set(oq.x, oq.y, oq.z, oq.w).premultiply(bq);
+      const toWorld = (x, y, z) => v.set(x, y, z).applyQuaternion(sq).add(new THREE.Vector3(o.x, o.y, o.z).applyQuaternion(bq)).add(bp);
+      if (shape instanceof CANNON.Sphere) {
+        const c = toWorld(0, 0, 0);
+        shapes.push({ circle: [c.x, c.y, shape.radius] });
+      } else if (shape instanceof CANNON.Box) {
+        const h = shape.halfExtents;
+        shapes.push({ poly: [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => { const p = toWorld(a * h.x, b * h.y, 0); return [p.x, p.y]; }) });
+      } else if (shape instanceof CANNON.ConvexPolyhedron) {
+        shapes.push({ poly: hull2d(shape.vertices.map((p) => { const w = toWorld(p.x, p.y, p.z); return [w.x, w.y]; })) });
+      }
+    });
+  }
+  if (def.clipOutline) shapes = shapes.map((s) => (s.poly ? { poly: clipToBox(s.poly, box.w, box.h) } : s)).filter((s) => !s.poly || s.poly.length >= 3);
+  // The mesh was only for measuring: free it.
+  item.mesh.traverse((o) => { o.geometry?.dispose(); if (o.material && o.material !== EDGE_MATERIAL) o.material.dispose?.(); });
+  if (_outlines.size > 400) _outlines.clear(); // a pulley's every height is a new entry
+  _outlines.set(k, shapes);
+  return shapes;
+}
+// The outline of a gadget at (x, y), with its bounding box.
+function outlineAt(type, x, y, rot = 0, size = null, flip = false) {
+  const shapes = localOutline(type, rot, size, flip).map((s) => (s.circle
+    ? { circle: [s.circle[0] + x, s.circle[1] + y, s.circle[2]] }
+    : { poly: s.poly.map(([px, py]) => [px + x, py + y]) }));
+  const box = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const s of shapes) {
+    const pts = s.circle ? [[s.circle[0] - s.circle[2], s.circle[1] - s.circle[2]], [s.circle[0] + s.circle[2], s.circle[1] + s.circle[2]]] : s.poly;
+    for (const [px, py] of pts) { box[0] = Math.min(box[0], px); box[1] = Math.min(box[1], py); box[2] = Math.max(box[2], px); box[3] = Math.max(box[3], py); }
+  }
+  return { shapes, box };
+}
+// Whether two outlines (from outlineAt) overlap by more than a touch.
+function outlinesOverlap(a, b) {
+  if (a.box[0] >= b.box[2] - OUTLINE_EPS || b.box[0] >= a.box[2] - OUTLINE_EPS
+    || a.box[1] >= b.box[3] - OUTLINE_EPS || b.box[1] >= a.box[3] - OUTLINE_EPS) return false;
+  return a.shapes.some((s) => b.shapes.some((t) => shapesOverlap(s, t)));
+}
+function shapesOverlap(s, t) {
+  if (s.circle && t.circle) return Math.hypot(s.circle[0] - t.circle[0], s.circle[1] - t.circle[1]) < s.circle[2] + t.circle[2] - OUTLINE_EPS;
+  if (s.circle) return circlePolyOverlap(s.circle, t.poly);
+  if (t.circle) return circlePolyOverlap(t.circle, s.poly);
+  return polysOverlap(s.poly, t.poly);
+}
+// Separating axes: convex polygons overlap unless some edge's normal
+// separates them.
+function polysOverlap(a, b) {
+  for (const poly of [a, b]) {
+    for (let i = 0; i < poly.length; i++) {
+      const [x0, y0] = poly[i], [x1, y1] = poly[(i + 1) % poly.length];
+      const nx = y0 - y1, ny = x1 - x0, len = Math.hypot(nx, ny);
+      if (len < 1e-9) continue;
+      const span = (p) => { let lo = Infinity, hi = -Infinity; for (const [px, py] of p) { const d = (px * nx + py * ny) / len; lo = Math.min(lo, d); hi = Math.max(hi, d); } return [lo, hi]; };
+      const [alo, ahi] = span(a), [blo, bhi] = span(b);
+      if (ahi <= blo + OUTLINE_EPS || bhi <= alo + OUTLINE_EPS) return false;
+    }
+  }
+  return true;
+}
+function circlePolyOverlap([cx, cy, r], poly) {
+  // Inside, or nearer an edge than its radius.
+  let inside = false, best = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > cy) !== (yj > cy) && cx < ((xj - xi) * (cy - yi)) / (yj - yi) + xi) inside = !inside;
+    const dx = xj - xi, dy = yj - yi, l2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((cx - xi) * dx + (cy - yi) * dy) / l2));
+    best = Math.min(best, Math.hypot(cx - (xi + t * dx), cy - (yi + t * dy)));
+  }
+  return inside || best < r - OUTLINE_EPS;
+}
+// Whether point (px, py) is on an outline, or within `pad` of it.
+function outlineContains(outline, px, py, pad = 0) {
+  return outline.shapes.some((s) => (s.circle ? Math.hypot(px - s.circle[0], py - s.circle[1]) <= s.circle[2] + pad : circlePolyOverlap([px, py, pad + 2 * OUTLINE_EPS], s.poly)));
+}
+// The lowest point of an outline (nothing may go below the ground).
+const outlineBottom = (outline) => outline.box[1];
+// A convex polygon cut down to the box 0..w x 0..h (Sutherland-Hodgman).
+function clipToBox(poly, w, h) {
+  const edges = [[(p) => p[0] >= 0, (a, b) => [0, a[1] + (b[1] - a[1]) * (0 - a[0]) / (b[0] - a[0])]],
+    [(p) => p[0] <= w, (a, b) => [w, a[1] + (b[1] - a[1]) * (w - a[0]) / (b[0] - a[0])]],
+    [(p) => p[1] >= 0, (a, b) => [a[0] + (b[0] - a[0]) * (0 - a[1]) / (b[1] - a[1]), 0]],
+    [(p) => p[1] <= h, (a, b) => [a[0] + (b[0] - a[0]) * (h - a[1]) / (b[1] - a[1]), h]]];
+  let out = poly;
+  for (const [inside, cut] of edges) {
+    const src = out;
+    out = [];
+    for (let i = 0; i < src.length; i++) {
+      const a = src[(i + src.length - 1) % src.length], b = src[i];
+      if (inside(b)) { if (!inside(a)) out.push(cut(a, b)); out.push(b); } else if (inside(a)) out.push(cut(a, b));
+    }
+    if (!out.length) break;
+  }
+  return out;
+}
+
+// 2D convex hull (monotone chain), counter-clockwise.
+function hull2d(points) {
+  const p = points.map(([x, y]) => [Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower = [], upper = [];
+  for (const q of p) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop(); lower.push(q); }
+  for (const q of [...p].reverse()) { while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
+  return lower.slice(0, -1).concat(upper.slice(0, -1));
 }
 
 // Put an item's mesh where it sits on the board.
