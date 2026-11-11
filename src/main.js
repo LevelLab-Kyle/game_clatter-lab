@@ -392,6 +392,8 @@ function startPlay() {
   world = buildWorld([...items.values()], { onImpact, onBell: onBellHit, onGoal: onGoalHit });
 
   playing = true;
+  // Where the view is headed (an ease may still be running), so Stop puts it back on whole cells.
+  follow = { from: { ...(viewSnap || view) }, moved: false, user: false, t: 0 };
   canvas.classList.remove('hover');
   document.body.classList.add('playing');
   updateHistoryButtons();
@@ -418,6 +420,8 @@ function stopPlay() {
   btnPlay.setAttribute('aria-label', 'Play');
   toast.hidden = true;
   hideWin();
+  if (follow?.moved && !follow.user) viewSnap = follow.from;
+  follow = null;
 }
 
 function onGoalHit(star) {
@@ -528,6 +532,62 @@ function stepPhysics(dt) {
     }
     GADGETS[item.type].onFrame?.(item, dt);
   }
+  followAction(dt);
+}
+
+// While playing, the camera follows the action only when it would leave the
+// screen. Everything moving is kept a cell inside the edges, and the view
+// glides over just enough to do it (up and down only with the lock off);
+// once the star is hit, the star is kept in view instead. Stop puts the
+// view back where the run started. Moving the view by hand during a run
+// leaves it to the player.
+let follow = null; // { from: the view at Play, moved, user, t } while playing
+const FOLLOW_MIN_SPEED = 3; // cells a second: slower pieces are settling, not action
+const FOLLOW_MARGIN = 1; // cells
+const FOLLOW_AFTER = 0.5; // seconds: pieces settle as a run starts; that isn't action
+const FOLLOW_TOP_SPEED = 8; // cells a second: the camera doesn't lurch faster, unless a piece does
+// The least shift that fits [lo, hi] (plus the margin) in a span of the
+// screen centered on `center`; if it can't fit, centered.
+function followShift(lo, hi, center, span) {
+  lo -= FOLLOW_MARGIN;
+  hi += FOLLOW_MARGIN;
+  if (hi - lo >= span) return (lo + hi) / 2 - center;
+  return Math.min(0, lo - (center - span / 2)) + Math.max(0, hi - (center + span / 2));
+}
+function followAction(dt) {
+  // Another move of the view (Home, Stop's return, a snap) goes first.
+  if (!follow || follow.user || viewSnap) return;
+  follow.t += dt;
+  if (follow.t < FOLLOW_AFTER) return;
+  // What has to be on screen: the star once it's hit, else whatever moves.
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, fastest = 0;
+  for (const item of items.values()) {
+    if (won && item.type !== 'star') continue;
+    const points = won ? [item.mesh.position] : [];
+    for (const part of won ? [] : item.parts || []) {
+      const speed = part.body.mass > 0 ? part.body.velocity.length() : 0;
+      if (speed > FOLLOW_MIN_SPEED) { points.push(part.body.position); fastest = Math.max(fastest, speed); }
+    }
+    for (const p of points) {
+      x0 = Math.min(x0, p.x - 0.5); x1 = Math.max(x1, p.x + 0.5);
+      y0 = Math.min(y0, p.y - 0.5); y1 = Math.max(y1, p.y + 0.5);
+    }
+  }
+  if (x0 > x1) return; // nothing moving
+  const { w, h } = viewSize();
+  const shiftX = followShift(x0, x1, view.cx, w);
+  const shiftY = lockY ? 0 : followShift(y0, y1, view.cy, h);
+  const dist = Math.hypot(shiftX, shiftY);
+  if (dist < 0.01) return;
+  // Glide (so pieces taking turns don't jolt it), never faster than
+  // FOLLOW_TOP_SPEED unless a piece is: then just fast enough to keep up.
+  // The glide tightens with speed so a fast piece trails by under a cell
+  // (the margin) instead of slipping off screen.
+  const rate = Math.max(4, fastest * 1.5);
+  const step = Math.min(dist * (1 - Math.exp(-dt * rate)), Math.max(FOLLOW_TOP_SPEED, fastest * 1.25) * dt);
+  view.cx += (shiftX / dist) * step;
+  view.cy += (shiftY / dist) * step; // updateCamera keeps it above the ground
+  follow.moved = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -644,6 +704,13 @@ function updateDrag(ev) {
   if (pinch) return;
   if (!drag) return;
   if (drag.kind === 'pan') {
+    if (follow && !follow.user) {
+      // While the camera follows, a tap's wobble isn't a pan. A real drag
+      // takes over, starting from where the camera is now.
+      if (Math.hypot(ev.clientX - drag.startX, ev.clientY - drag.startY) < PAN_LOCK_PX) return;
+      follow.user = true;
+      Object.assign(drag, { startX: ev.clientX, startY: ev.clientY, cx0: view.cx, cy0: view.cy });
+    }
     const dx = (ev.clientX - drag.startX) / (PX_PER_UNIT * view.zoom);
     const dy = (ev.clientY - drag.startY) / (PX_PER_UNIT * view.zoom);
     view.cx = drag.cx0 - dx;
@@ -808,8 +875,12 @@ canvas.addEventListener('pointermove', (ev) => {
       pinch = { mode: 'zoom', dist: s.dist, zoom: view.zoom, mid: s.mid, cx: view.cx, cy: view.cy };
     } else if (travel >= PAN_LOCK_PX && travel > spread) {
       pinch.mode = 'pan';
+      // While the camera follows, pan from where it is now, not where the fingers landed.
+      if (follow && !follow.user) Object.assign(pinch, { mid: s.mid, cx: view.cx, cy: view.cy });
     }
+    if (pinch.mode && follow) follow.user = true; // a real pinch or pan: the player's view now
   }
+  if (!pinch.mode && follow && !follow.user) return; // fingers resting while the camera follows
   if (pinch.mode === 'zoom') view.zoom = THREE.MathUtils.clamp(pinch.zoom * s.dist / Math.max(1, pinch.dist), ZOOM_MIN, ZOOM_MAX);
   const k = PX_PER_UNIT * view.zoom;
   view.cx = pinch.cx - (s.mid.x - pinch.mid.x) / k;
@@ -834,6 +905,7 @@ canvas.addEventListener('contextmenu', (ev) => {
 canvas.addEventListener('wheel', (ev) => {
   ev.preventDefault();
   viewSnap = null;
+  if (follow) follow.user = true;
   clearTimeout(wheelSnapTimer);
   wheelSnapTimer = setTimeout(snapView, 150);
   if (ev.ctrlKey || ev.metaKey) {
@@ -1424,6 +1496,7 @@ function gridTarget(cx, cy, zoom) {
 // Ease the view to fit the whole board (or the origin when it's empty),
 // zooming in or out as needed.
 function homeView() {
+  if (follow) follow.user = true; // during a run: the player's view now, so Stop leaves it
   let minX = Infinity, maxX = -Infinity, maxY = 0;
   for (const item of items.values()) {
     for (const [cx, cy] of cellsOf(item)) {
