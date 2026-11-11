@@ -151,7 +151,7 @@ const LEVELS = [
   },
   {
     name: 'Wrecking Ball',
-    goal: 'Hang the pendulum. Press {rotate} to pull the ball back. Then it will knock the dominoes over.',
+    goal: 'Hang the pendulum. Drag its ball back. Then it will swing and knock the dominoes over.',
     parts: { pendulum: 1 },
     items: [['domino', 7, 0], ['domino', 8, 0], ['domino', 9, 0], ['star', 10.5, 0]],
     solution: [['pendulum', 6, 1, -1]],

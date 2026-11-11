@@ -397,54 +397,68 @@ const GADGETS = {
   pendulum: {
     name: 'Pendulum',
     w: 1, h: 3.25,
-    // Rotate doesn't turn the pendulum; it swings the ball out one level
-    // either side (rot is -1..1). The rope is 2.5 long, so pulled out the ball
-    // rests at a 3-4-5 triangle point, 1.5 across / 2 down, where its box
-    // lands exactly on the subgrid.
-    rotatable: true,
-    // Rotate steps the ball through the swing levels and wraps around.
-    poses: [0, 1, -1].map((rot) => ({ rot, flip: false })),
-    pivotY: 3, // the rope hangs from the bottom of the bar (bar: y 3..3.25)
-    rope: 2.5,
-    reach: [0, 1.5], // how far across the ball sits at each swing level
-    ballRadius: 0.5,
-    swing: { min: -1, max: 1 },
+    swing: true, // never turns: pull the ball back by dragging it instead
+    // Like the Ball, Size steps its ball medium -> large -> small (the ball,
+    // bowling ball, marble, same weights). The bar is a 1 x ¼ plate, the
+    // same on every size.
+    resizable: { sizes: [[1, 1], [2, 1], [0.5, 1]] },
+    growsFromCenter: true, // the bar keeps its middle (see nextSize)
+    keepOnResize: ['bx', 'by'], // and the ball stays where it was put
+    pivotY: 3, // the rope hangs from the bottom of the bar (bar: 1 wide, y 3..3.25)
     idleFrame: true, // keep the rope drawn while editing
-    ballRest(rot = 0) {
-      // ↺ (positive rot) swings the ball out to the right, ↻ to the left,
-      // the way a hanging ball moves when its bar turns that way.
-      // Older saves may hold a level that's gone; use the furthest one left.
-      const across = this.reach[Math.min(Math.abs(rot), this.reach.length - 1)];
-      const down = Math.sqrt(this.rope * this.rope - across * across);
-      return new THREE.Vector3(Math.sign(rot) * across, this.pivotY - down, 0);
+    ballOf(item) {
+      const k = item?.size?.w || 1;
+      return { r: 0.5 * k, mass: k > 1.5 ? 6 : k < 0.75 ? 1.2 : 3 };
     },
-    // Only the bar and the ball take up space (the rope doesn't), so the
-    // footprint moves with the swing level: swinging the ball out can change
-    // which cells the pendulum needs to be free.
-    footprint(rot = 0) {
-      const b = this.ballRest(rot); // relative to the group origin (x + 0.5, y)
-      const r = this.ballRadius;
-      return [...rectCells(0, 3, 1, 0.25), ...rectCells(b.x + 0.5 - r, b.y - r, 2 * r, 2 * r)];
+    // Where the ball hangs, from the rope's top (the bar's underside, in its
+    // middle). Dragged anywhere; it rides in `size` as { bx, by }, so it
+    // saves, undoes and shares like the rest. Otherwise straight down on a
+    // 2½ rope, or as high as the ground allows. (Older saves turned it to
+    // pull the ball out: 1½ across and 2 down, either way.)
+    ballAt(item) {
+      // A ball made bigger where it hung low is lifted clear of the ground.
+      const lowest = this.ballOf(item).r - this.pivotY - (item?.y || 0);
+      if (item?.size?.bx !== undefined) return { x: item.size.bx, y: Math.max(item.size.by, lowest) };
+      if (item?.rot) return { x: Math.sign(item.rot) * 1.5, y: -2 };
+      return { x: 0, y: -Math.min(2.5, this.pivotY - this.ballOf(item).r) };
     },
-    applyRot(item) {
-      const ball = item.mesh.getObjectByName('ball');
-      ball.position.copy(this.ballRest(item.rot || 0));
-      if (ball.userData.rest) ball.userData.rest.p.copy(ball.position);
-      this.onFrame(item);
+    // Handle: the ball. Drag it anywhere below the bar: how far it is from
+    // the bar sets the rope, where it is sets the swing.
+    handleAt(item, px, py, pad = 0) {
+      const b = this.ballAt(item), w = item.size?.w || 1;
+      return Math.hypot(px - (item.x + 0.5 * w + b.x), py - (item.y + this.pivotY + b.y)) <= this.ballOf(item).r + pad ? 'ball' : null;
     },
-    makeMesh() {
+    handlePoint(item) {
+      const b = this.ballAt(item), w = item.size?.w || 1;
+      return { x: item.x + 0.5 * w + b.x, y: item.y + this.pivotY + b.y };
+    },
+    dragHandle(item, handle, to) {
+      const w = item.size?.w || 1, r = this.ballOf(item).r;
+      let bx = Math.round((to.x - item.x - 0.5 * w) * SUB) / SUB;
+      let by = Math.round((to.y - item.y - this.pivotY) * SUB) / SUB;
+      by = Math.min(by, -r); // below the bar
+      by = Math.max(by, r - this.pivotY - item.y); // not under the ground
+      if (Math.hypot(bx, by) < 0.75) return item.size || { w: 1, h: 1 }; // too close to the bar: stay
+      return { w, h: 1, bx, by };
+    },
+    makeMesh(item) {
+      const { r } = this.ballOf(item);
       const g = new THREE.Group();
       g.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(1, 0.25, 0.6), standard(0x8a7f6a))).translateY(this.pivotY + 0.125));
-      const ball = named(shadowed(new THREE.Mesh(new THREE.SphereGeometry(this.ballRadius, 32, 24), standard(0x5a5a68, { roughness: 0.3, metalness: 0.3 }))), 'ball');
-      ball.position.copy(this.ballRest(0));
+      const ball = named(shadowed(new THREE.Mesh(new THREE.SphereGeometry(r, 32, 24), standard(0x5a5a68, { roughness: 0.3, metalness: 0.3 }))), 'ball');
+      const b = this.ballAt(item);
+      ball.position.set(b.x, this.pivotY + b.y, 0);
       g.add(ball);
       const rope = named(shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 8), standard(0x333333))), 'rope');
       g.add(rope);
+      g.userData.pendulum = { r, mass: this.ballOf(item).mass };
+      this.onFrame({ mesh: g }); // the rope drawn from the start (the tray picture too)
       return g;
     },
     makeBodies(g) {
+      const { r, mass } = g.userData.pendulum;
       const anchor = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.125, 0.3)), material: MATS.surface });
-      const ball = lockToPlane(new CANNON.Body({ mass: 3, shape: new CANNON.Sphere(this.ballRadius), material: MATS.marble }));
+      const ball = lockToPlane(new CANNON.Body({ mass, shape: new CANNON.Sphere(r), material: MATS.marble }));
       ball.linearDamping = 0.02;
       // Rope: pin the ball to the bar's underside at whatever angle it starts from.
       const toPivot = new THREE.Vector3(0, this.pivotY, 0).sub(g.getObjectByName('ball').position);
@@ -727,50 +741,81 @@ const GADGETS = {
   hammer: {
     name: 'Hammer',
     w: 1, h: 2.75,
-    rotatable: true, // turned, it still holds still until bumped, then swings away from the hitter
-    turnsAbout: [0.5, 0.25], // Rotate turns it about its hinge, so the base stays put (see turnedAnchor)
-    // Like the Ball, Size steps it medium -> large -> small: a longer or
-    // shorter handle, so it reaches farther or less far. The head is the
-    // same on every size.
-    resizable: { sizes: [[1, 1], [1, 3.75 / 2.75], [1, 1.75 / 2.75]] },
-    pivotY: 0.25, // the hinge, on top of the base
-    // Each size's height; the head is always 1 wide, like the base, and weighs 2.
+    rotatable: true, // turned, it still holds still until hit, then swings away from the hitter
+    // Rotate turns it about its hinge (the middle of the base's top), so the
+    // base stays put (see turnedAnchor).
+    turnsAbout: (size) => [0.5 * (size?.w || 1), 0.25],
+    // Like the Ball, Size steps its head medium -> large -> small. Drag the head to set the handle's length
+    // (see handleAt): it rides in `size` as { hl }, the handle's length from
+    // the hinge to the head, kept through a resize. Lengths step by ¼ and
+    // every head is a whole number of quarters tall, so the head's edges
+    // stay on the grid at every size.
+    resizable: { sizes: [[1, 1], [1.5, 1], [0.5, 1]] },
+    keepOnResize: ['hl'],
+    pivotY: 0.25, // the hinge, on top of the base (a 1 x ¼ plate, the same on every size)
+    // Each size's head (wide x tall) and weight, the handle's length, and
+    // how high the head's middle sits above the base's bottom.
     dims(item) {
-      const k = item?.size?.h || 1;
-      const h = k < 0.9 ? 1.75 : k > 1.1 ? 3.75 : 2.75;
-      return { h, head: 1, mass: 2 };
+      const w = item?.size?.w || 1;
+      const head = w < 0.75 ? { headW: 0.5, headH: 0.25, mass: 1 } : w > 1.25 ? { headW: 1.5, headH: 0.75, mass: 4 } : { headW: 1, headH: 0.5, mass: 2 };
+      // Older saves sized the whole hammer (its box height) instead of the head.
+      const old = item?.size?.h && item.size.h !== 1 ? Math.max(0.75, Math.round((2.75 * item.size.h - 0.75) * SUB) / SUB) : null;
+      const hl = item?.size?.hl ?? old ?? 2;
+      return { ...head, w, hl, headY: this.pivotY + hl + head.headH / 2 };
+    },
+    // Handle: the head. Dragged along the handle (in the hammer's own,
+    // maybe turned, frame) it sets the handle's length.
+    handleAt(item, px, py, pad = 0) {
+      const { headW, headH } = this.dims(item);
+      const c = this.handlePoint(item);
+      const { quaternion } = itemTransform(item);
+      const local = new THREE.Vector3(px - c.x, py - c.y, 0).applyQuaternion(quaternion.clone().invert());
+      return Math.abs(local.x) <= headW / 2 + pad && Math.abs(local.y) <= headH / 2 + pad ? 'head' : null;
+    },
+    handlePoint(item) {
+      const { position, quaternion } = itemTransform(item);
+      const p = new THREE.Vector3(0, this.dims(item).headY, 0).applyQuaternion(quaternion).add(position);
+      return { x: p.x, y: p.y };
+    },
+    dragHandle(item, handle, to) {
+      const d = this.dims(item);
+      const { position, quaternion } = itemTransform(item);
+      // How far the head's middle is along the handle, less the hinge and half the head.
+      const along = new THREE.Vector3(to.x - position.x, to.y - position.y, 0).applyQuaternion(quaternion.clone().invert()).y;
+      const hl = Math.max(0.75, Math.round((along - this.pivotY - d.headH / 2) * SUB) / SUB); // at least ¾ of a cell of handle
+      const { w = 1, h = 1 } = item.size || {};
+      return { w, h, hl };
     },
     makeMesh(item) {
       const d = this.dims(item);
-      const headY = d.h - 0.25; // the head's middle
       const g = new THREE.Group();
-      g.userData.hammer = { ...d, headY };
+      g.userData.hammer = d;
       g.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(1, 0.25, 0.6), standard(0x8a7f6a))).translateY(0.125));
       const mallet = named(new THREE.Group(), 'mallet');
-      mallet.position.y = headY;
-      mallet.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(d.head, 0.5, 0.6), standard(0xb5523b))));
-      const handle = headY - 0.25 - this.pivotY;
-      mallet.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.2, handle, 0.3), standard(0xc98f4a))).translateY(-0.25 - handle / 2));
+      mallet.position.y = d.headY;
+      mallet.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(d.headW, d.headH, 0.6), standard(0xb5523b))));
+      const handle = d.headY - d.headH / 2 - this.pivotY;
+      mallet.add(shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.2, handle, 0.3), standard(0xc98f4a))).translateY(-d.headH / 2 - handle / 2));
       g.add(mallet);
       return g;
     },
     makeBodies(g) {
-      const { head, mass, headY } = g.userData.hammer;
+      const { headW, headH, mass, headY } = g.userData.hammer;
       const base = new CANNON.Body({ mass: 0, material: MATS.surface });
       base.addShape(new CANNON.Box(new CANNON.Vec3(0.5, 0.125, 0.3)), new CANNON.Vec3(0, 0.125, 0));
-      // Kinematic (it holds still) until something bumps it; see onStep.
+      // Kinematic (it holds still) until something hits it; see onStep.
       // The ball's material: a hard head glances off what it hits instead of gripping it.
       const mallet = lockToPlane(new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC, material: MATS.marble }));
       // The handle's body stops short of the hinge, so its corners don't
       // drag on the base as it swings.
-      const handle = headY - 0.25 - this.pivotY - 0.25;
-      mallet.addShape(new CANNON.Box(new CANNON.Vec3(head / 2, 0.25, 0.3)));
-      mallet.addShape(new CANNON.Box(new CANNON.Vec3(0.1, handle / 2, 0.15)), new CANNON.Vec3(0, -0.25 - handle / 2, 0));
+      const handle = headY - headH / 2 - this.pivotY - 0.25;
+      mallet.addShape(new CANNON.Box(new CANNON.Vec3(headW / 2, headH / 2, 0.3)));
+      if (handle > 0.01) mallet.addShape(new CANNON.Box(new CANNON.Vec3(0.1, handle / 2, 0.15)), new CANNON.Vec3(0, -headH / 2 - handle / 2, 0));
       const hinge = new CANNON.HingeConstraint(base, mallet, {
         pivotA: new CANNON.Vec3(0, this.pivotY, 0), axisA: Z_AXIS,
         pivotB: new CANNON.Vec3(0, this.pivotY - headY, 0), axisB: Z_AXIS,
       });
-      // A bump anywhere, the base too (a ball rolling along the ground hits
+      // A hit anywhere, the base too (a ball rolling along the ground hits
       // that first), sets it falling away from the hitter: which side of the
       // handle it came from, in the hammer's own (maybe turned) frame.
       // Straight on, it goes one way.
@@ -900,15 +945,16 @@ const GADGETS = {
       }
       return null;
     },
-    // The pulley with platform `side`'s top at board height `py` (the grab
-    // point), on the quarter grid and within its travel.
-    dragHandle(item, side, py) {
+    // The pulley with platform `side`'s top at board point `to` (only its
+    // height counts), on the quarter grid and within its travel.
+    dragHandle(item, side, { y: py }) {
       const top = THREE.MathUtils.clamp(Math.round((py - item.y) * SUB) / SUB, this.minTop(item), this.dims(item).wheelY);
       const [left, right] = this.tops(item);
       const { w = 1, h = 1 } = item.size || {};
       return { w, h, left, right, [side]: top };
     },
-    handleTop(item, side) { return item.y + this.tops(item)[side === 'left' ? 0 : 1]; },
+    // Where a handle is (its top middle): a drag keeps the grab's offset from it.
+    handlePoint(item, side) { return { x: item.x, y: item.y + this.tops(item)[side === 'left' ? 0 : 1] }; },
     makeMesh(item) {
       const d = this.dims(item);
       const g = new THREE.Group();
@@ -936,10 +982,11 @@ const GADGETS = {
       return g;
     },
     makeBodies(g) {
-      // The wheel is solid: things bounce off it, nothing can be built
-      // through it, and it's easy to grab. The platforms pass by it.
+      // The wheel's shape, for building only: nothing can be built through
+      // it, and it's easy to grab. During a run nothing hits it (no
+      // collision group or mask), so balls pass through as before.
       const { r, wheelY } = g.userData.pulley;
-      const wheel = new CANNON.Body({ mass: 0, material: MATS.surface, collisionFilterGroup: WHEEL_GROUP });
+      const wheel = new CANNON.Body({ mass: 0, collisionFilterGroup: 0, collisionFilterMask: 0 });
       wheel.addShape(new CANNON.Sphere(r), new CANNON.Vec3(0, wheelY, 0));
       const parts = [];
       for (const side of [-1, 1]) {
@@ -949,7 +996,7 @@ const GADGETS = {
         plat.angularFactor.set(0, 0, 0);
         // It passes over the ground: the rope stops it there instead (onStep).
         // Resting on the ground, it would be pushed up and tug the rope.
-        plat.collisionFilterMask = ~(GROUND_GROUP | WHEEL_GROUP);
+        plat.collisionFilterMask = ~GROUND_GROUP;
         parts.push({ body: plat, mesh: g.getObjectByName(`plat${side}`) });
       }
       parts.push({ body: wheel, mesh: null });
@@ -1131,10 +1178,8 @@ function footprintCells(type, x, y, rot = 0, size = null) {
 // a good way into the ground in one step, and the push back out stopped it
 // dead. stepFrame advances one 1/60 s frame (used by scripted runs).
 const PHYSICS_STEP = 1 / 120;
-// Collision groups, so a pulley's platforms can pass over the ground and
-// by their own wheel.
+// The ground's collision group, so a pulley's platforms can pass over it.
 const GROUND_GROUP = 4;
-const WHEEL_GROUP = 8;
 function stepFrame(world) {
   world.step(PHYSICS_STEP);
   world.step(PHYSICS_STEP);

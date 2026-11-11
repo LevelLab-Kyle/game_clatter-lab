@@ -214,8 +214,8 @@ const cellsOf = (item) => footprintCells(item.type, item.x, item.y, item.rot, it
 
 // The same Size step: width, height and a seesaw's offset.
 const sameShape = (a, b) => (a?.w ?? 1) === (b?.w ?? 1) && (a?.h ?? 1) === (b?.h ?? 1) && (a?.off ?? 0) === (b?.off ?? 0);
-// The same in every field, a pulley's platform heights too.
-const sameSize = (a, b) => sameShape(a, b) && a?.left === b?.left && a?.right === b?.right;
+// The same in every field: a pulley's platform heights and a pendulum's ball spot too.
+const sameSize = (a, b) => sameShape(a, b) && a?.left === b?.left && a?.right === b?.right && a?.bx === b?.bx && a?.by === b?.by && a?.hl === b?.hl;
 
 // Locked items are a level's own pieces: the player can't move or remove them.
 function addItem(type, x, y, rot = 0, flip = false, size = null, locked = false) {
@@ -726,7 +726,7 @@ function updateDrag(ev) {
     const p = pointerToWorld(ev);
     if (!p) return;
     const { item } = drag;
-    const size = GADGETS[item.type].dragHandle(item, drag.handle, p.y + drag.grab);
+    const size = GADGETS[item.type].dragHandle(item, drag.handle, { x: p.x + drag.grab.x, y: p.y + drag.grab.y });
     if (sameSize(size, item.size) || !canPlace(item.type, item.x, item.y, item.rot, item.id, size, !!item.flip)) return;
     if (!drag.edited) { recordEdit(); drag.edited = true; } // one undo step per drag
     moveItem(item, item.x, item.y, item.rot, item.flip, size); // rebuilds the mesh
@@ -816,10 +816,12 @@ canvas.addEventListener('pointerdown', (ev) => {
   const p = item ? pointerToWorld(ev) : null;
   const handle = p && GADGETS[item.type].handleAt?.(item, p.x, p.y, 0.15);
   if (handle) {
-    // A part that drags on its own (a pulley's platform), straight up and down.
+    // A part that drags on its own: a pulley's platform (up and down), a
+    // pendulum's ball (anywhere) or a hammer's head (along its handle).
     tweens.delete(item.mesh);
     select(item);
-    const grab = GADGETS[item.type].handleTop(item, handle) - p.y;
+    const at = GADGETS[item.type].handlePoint(item, handle);
+    const grab = { x: at.x - p.x, y: at.y - p.y }; // keeps where on the handle it was grabbed
     drag = { kind: 'handle', item, handle, grab, edited: false };
   } else if (item) {
     tweens.delete(item.mesh);
@@ -1019,7 +1021,7 @@ function turnedPoint(type, size, rot, [px, py]) {
 
 function turnedAnchor(item, rot) {
   const spots = [];
-  const about = GADGETS[item.type].turnsAbout;
+  const about = GADGETS[item.type].turnsAbout?.(item.size);
   if (about) {
     // It turns about that point (the hammer's hinge), which stays put.
     const [ox, oy] = turnedPoint(item.type, item.size, item.rot || 0, about);
@@ -1054,8 +1056,10 @@ function nextSize(item, dir) {
   const at = sizes[was.step] && same(sizes[was.step]) ? was.step : sizes.findIndex(same);
   const old = footprintSize(item.type, item.rot, item.size);
   for (let k = 1; k <= sizes.length; k++) {
-    // (A new Size starts a pulley's platforms even again: the size list has no heights.)
-    const size = sizes[(((at + dir * k) % sizes.length) + sizes.length) % sizes.length];
+    // (A new Size starts a pulley's platforms even again: the size list has
+    // no heights. A gadget can name fields to keep instead: a pendulum's ball spot.)
+    const keep = Object.fromEntries((GADGETS[item.type].keepOnResize || []).filter((f) => was[f] !== undefined).map((f) => [f, was[f]]));
+    const size = { ...sizes[(((at + dir * k) % sizes.length) + sizes.length) % sizes.length], ...keep };
     if (sameShape(size, was)) continue;
     const now = footprintSize(item.type, item.rot, size);
     // A bucket grows around its cavity: the cavity's middle and the floor
@@ -1063,6 +1067,13 @@ function nextSize(item, dir) {
     // is. Everything else grows from its bottom-left corner.
     let bx = 0, by = 0;
     if (GADGETS[item.type].growsFromCenter) { bx = (old.w - now.w) / 2; by = (old.h - now.h) / 2; }
+    const about = GADGETS[item.type].turnsAbout;
+    if (about) {
+      // It keeps the point it turns about (the hammer's hinge), however it's turned.
+      const [ox, oy] = turnedPoint(item.type, was, item.rot || 0, about(was));
+      const [nx, ny] = turnedPoint(item.type, size, item.rot || 0, about(size));
+      bx = ox - nx; by = oy - ny;
+    }
     if (GADGETS[item.type].pivotX) bx = GADGETS[item.type].pivotX(was) - GADGETS[item.type].pivotX(size); // the fulcrum stays put
     if (GADGETS[item.type].cavity) {
       const r = (item.rot || 0) % 4; // floor: bottom, right, top, left
@@ -1231,15 +1242,6 @@ function rotateSelected(dir = 1) {
   const pose = nextRotation(selected, dir);
   if (!pose) return;
   recordEdit();
-  if (def.swing) {
-    const ball = selected.mesh.getObjectByName('ball');
-    const from = ball.position.clone();
-    moveItem(selected, selected.x, selected.y, pose.rot); // updates occupancy, puts the ball at its new rest
-    const to = ball.position.clone();
-    ball.position.copy(from);
-    tweens.set(ball, { from, to, t: 0, fromQ: null, toQ: ball.quaternion.clone() });
-    return;
-  }
   const from = selected.mesh.position.clone();
   const fromQ = selected.mesh.quaternion.clone();
   const at = turnedAnchor(selected, pose.rot);
