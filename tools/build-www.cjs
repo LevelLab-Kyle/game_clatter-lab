@@ -28,6 +28,9 @@ const files = [
   ...list('assets/fonts')
     .filter((f) => f.endsWith('.woff2'))
     .map((f) => 'assets/fonts/' + f),
+  ...list('assets/icons')
+    .filter((f) => f.endsWith('.png'))
+    .map((f) => 'assets/icons/' + f),
 ];
 
 fs.rmSync(out, { recursive: true, force: true });

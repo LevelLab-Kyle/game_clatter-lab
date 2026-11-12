@@ -32,6 +32,13 @@ const roundIcon = (size) => sharp(art).resize(size, size)
   }
   console.log('resources/: icon-only, icon-foreground, icon-background, splash, splash-dark');
 
+  // Web: rounded tab icons, and a square home-screen icon (iOS rounds its own corners).
+  const web = path.join(root, 'assets', 'icons');
+  fs.mkdirSync(web, { recursive: true });
+  for (const size of [32, 192]) await sharp(await roundIcon(size)).png().toFile(path.join(web, `favicon-${size}.png`));
+  await sharp(art).resize(180, 180).flatten({ background: SKY }).png().toFile(path.join(web, 'apple-touch-icon.png'));
+  console.log('assets/icons/: favicon-32, favicon-192, apple-touch-icon');
+
   // Play Store art: 512 icon, and a 1024x500 feature graphic (needs a store screenshot).
   fs.mkdirSync(store, { recursive: true });
   await sharp(art).resize(512, 512).png().toFile(path.join(store, 'play-icon-512.png'));
