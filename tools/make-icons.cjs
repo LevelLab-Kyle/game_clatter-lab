@@ -42,7 +42,7 @@ const roundIcon = (size) => sharp(art).resize(size, size)
   // Play Store art: 512 icon, and a 1024x500 feature graphic (needs a store screenshot).
   fs.mkdirSync(store, { recursive: true });
   await sharp(art).resize(512, 512).png().toFile(path.join(store, 'play-icon-512.png'));
-  const shotPath = path.join(store, 'play-tablet-3-domino-play.png');
+  const shotPath = path.join(store, 'play-tablet-3-domino.png');
   if (fs.existsSync(shotPath)) {
     const shot = await sharp(shotPath).resize(560, 315).png().toBuffer();
     const frame = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500">
