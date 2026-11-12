@@ -445,11 +445,11 @@ body.loading #loader { display: flex; }
   white-space: nowrap;
 }
 
-/* Win notice */
+/* Win notice: below the corner buttons, like the hint card. */
 #toast {
   position: absolute;
   left: 50%;
-  top: var(--content-gap);
+  top: calc(var(--height-input) + 2 * var(--content-gap));
   transform: translateX(-50%);
   background: var(--color-accent);
   color: var(--color-on-accent);
@@ -754,7 +754,7 @@ button, select, #item-tools { touch-action: manipulation; }
 
 /* Phones: the top bar stays on one row; the level name or example menu shrinks to fit. */
 @media (max-width: 720px) {
-  #hint { top: calc(2 * var(--height-input) + 2 * var(--content-gap)); } /* below the big Play button */
+  #hint, #toast { top: calc(2 * var(--height-input) + 2 * var(--content-gap)); } /* below the big Play button */
   .modes { flex: 0 0 auto; }
   .level-info, .examples { min-width: 0; flex: 1 1 auto; }
   .examples select { min-width: 0; } /* natural width, shrinking if it must */

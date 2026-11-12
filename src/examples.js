@@ -17,10 +17,11 @@ const EXAMPLES = {
   'Seesaw Launch': {
     blurb: 'A bowling ball slams one end of a seesaw and flings the marble into the star.',
     items: [
+      ['block', 2, 0], ['block', 3, 0], ['block', 3, 1],
       ['block', 4, 0], ['block', 4, 1],
       ['seesaw', 5, 0], ['marble', 5, 1],
-      ['bowling', 7, 6],
-      ['star', 6, 4],
+      ['bowling', 7, 11],
+      ['star', 6, 6],
     ],
   },
 
@@ -128,6 +129,45 @@ const EXAMPLES = {
       ['ball', 2, 1],
       ['marble', 4, 0.25],
       ['star', 4, 1.25],
+    ],
+  },
+
+  // Tall machines: they fill a phone held upright.
+  'Zigzag': {
+    blurb: 'The marble rolls down ramp after ramp. It bounces off a wall each time. It knocks the dominoes into the star.',
+    items: [
+      ['ramp', 1, 12, 0, false, { w: 2, h: 1 }], ['marble', 1, 13],
+      ['ramp', 3, 11, 0, false, { w: 2, h: 1 }],
+      ['block', 6, 7], ['block', 6, 8], ['block', 6, 9], ['block', 6, 10], ['block', 6, 11],
+      ['ramp', 4, 7, 0, true, { w: 2, h: 1 }], ['ramp', 2, 6, 0, true, { w: 2, h: 1 }],
+      ['block', 0, 0], ['block', 0, 1], ['block', 0, 2], ['block', 0, 3],
+      ['block', 0, 4], ['block', 0, 5], ['block', 0, 6], ['block', 0, 7],
+      ['ramp', 1, 3, 0, false, { w: 2, h: 1 }], ['ramp', 3, 2, 0, false, { w: 2, h: 1 }],
+      ['domino', 5, 0], ['domino', 6, 0],
+      ['star', 7, 0],
+    ],
+  },
+
+  'Pipe Drop': {
+    blurb: 'The marble rolls down two ramps and hits a wall. It falls a long way into the pipe. The pipe turns it into the dominoes.',
+    items: [
+      ['ramp', 5, 12, 0, true, { w: 2, h: 1 }], ['marble', 6, 13],
+      ['ramp', 3, 11, 0, true, { w: 2, h: 1 }],
+      ['block', 1, 10], ['block', 1, 11], ['block', 1, 12],
+      ['pipe', 2, 0, 1, true],
+      ['domino', 5, 0], ['domino', 6, 0],
+      ['star', 7, 0],
+    ],
+  },
+
+  'Tower Bounce': {
+    blurb: 'The marble rolls off a tall tower. It bounces off the pad and up into the star.',
+    items: [
+      ['block', 0, 0], ['block', 0, 1], ['block', 0, 2], ['block', 0, 3], ['block', 0, 4],
+      ['block', 0, 5], ['block', 0, 6], ['block', 0, 7], ['block', 0, 8], ['block', 0, 9],
+      ['ramp', 0, 10, 0, false, { w: 2, h: 1 }], ['marble', 0, 11],
+      ['bouncer', 5, 0],
+      ['star', 7, 7],
     ],
   },
 };

@@ -1,10 +1,10 @@
 // Store screenshots of the web build in headless Chrome via CDP.
-// usage: node tools/store-shots.mjs <www dir> <out dir> <device> (device: phone | tablet | phone-land)
+// usage: node tools/store-shots.mjs <www dir> <out dir> <device> [light|dark]  (device: a key of DEVICES)
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const [www, outDir, device] = process.argv.slice(2);
+const [www, outDir, device, theme = 'light'] = process.argv.slice(2);
 const DEVICES = {
   phone: { width: 440, height: 956, dpr: 3, mobile: true },        // 1320x2868 (6.9")
   'phone-land': { width: 874, height: 402, dpr: 3, mobile: true },   // 2622x1206 (6.3")
@@ -12,6 +12,8 @@ const DEVICES = {
   'tablet-land': { width: 1376, height: 1032, dpr: 2, mobile: true },
   'play-phone': { width: 960, height: 540, dpr: 2, mobile: true },   // 1920x1080
   'play-tablet': { width: 1280, height: 720, dpr: 2, mobile: true }, // 2560x1440
+  'play-phone-port': { width: 540, height: 960, dpr: 2, mobile: true },   // 1080x1920
+  'play-tablet-port': { width: 720, height: 1280, dpr: 2, mobile: true }, // 1440x2560
 };
 const dev = DEVICES[device];
 fs.mkdirSync(outDir, { recursive: true });
@@ -50,11 +52,13 @@ const shot = async (name) => {
 await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: dev.width, height: dev.height, deviceScaleFactor: dev.dpr, mobile: dev.mobile });
 await send('Emulation.setTouchEmulationEnabled', { enabled: true });
-await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: theme }] });
 await send('Page.navigate', { url: 'file://' + path.resolve(www, 'index.html') });
 await sleep(4000);
 
-const scenes = JSON.parse(fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'store-scenes.json'), 'utf8'));
+// Upright screens get tall machines (store-scenes-portrait.json); wide ones the wide set.
+const scenesFile = dev.height > dev.width ? 'store-scenes-portrait.json' : 'store-scenes.json';
+const scenes = JSON.parse(fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), scenesFile), 'utf8'));
 for (const s of scenes) {
   for (const step of s.steps) {
     if (step.js) await evaluate(step.js);

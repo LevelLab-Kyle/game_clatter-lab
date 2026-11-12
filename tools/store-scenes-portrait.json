@@ -1,0 +1,8 @@
+[
+ {"name":"1-welcome","steps":[{"wait":500}]},
+ {"name":"2-picker","steps":[{"js":"document.getElementById('btn-levels').click()","wait":800},{"js":"(() => { const g = document.getElementById('level-grid').getBoundingClientRect(); const seen = [...document.querySelectorAll('.world-page')[0].children].filter((t) => t.getBoundingClientRect().bottom <= g.bottom + 1).length; const n = Math.floor(seen / 2); localStorage.setItem('clatter-lab.levels.v1', JSON.stringify({ mode: 'levels', level: LEVELS[n].name, done: LEVELS.slice(0, n).map((l) => l.name), boards: {} })); location.reload(); })()","wait":4000},{"js":"document.getElementById('btn-levels').click()","wait":1000}]},
+ {"name":"3-zigzag","steps":[{"js":"document.getElementById('picker-close').click()","wait":300},{"js":"document.getElementById('mode-sandbox').click()","wait":800},{"js":"loadExample('Zigzag')","wait":1200},{"js":"document.getElementById('btn-play').click()","wait":1900}]},
+ {"name":"4-pipe-drop","steps":[{"js":"document.getElementById('btn-play').click()","wait":500},{"js":"loadExample('Pipe Drop')","wait":1200},{"js":"document.getElementById('btn-play').click()","wait":1300}]},
+ {"name":"5-tower-bounce","steps":[{"js":"document.getElementById('btn-play').click()","wait":500},{"js":"loadExample('Tower Bounce')","wait":1200},{"js":"document.getElementById('btn-play').click()","wait":2300}]},
+ {"name":"6-seesaw","steps":[{"js":"document.getElementById('btn-play').click()","wait":500},{"js":"loadExample('Seesaw Launch')","wait":1200},{"js":"document.getElementById('btn-play').click()","wait":1300}]}
+]
