@@ -8,6 +8,7 @@ const [www, outDir, device, theme = 'light'] = process.argv.slice(2);
 const DEVICES = {
   phone: { width: 440, height: 956, dpr: 3, mobile: true },        // 1320x2868 (6.9")
   'phone-land': { width: 874, height: 402, dpr: 3, mobile: true },   // 2622x1206 (6.3")
+  'phone-port': { width: 402, height: 874, dpr: 3, mobile: true },   // 1206x2622 (6.3")
   tablet: { width: 1032, height: 1376, dpr: 2, mobile: true },     // 2064x2752 (13")
   'tablet-land': { width: 1376, height: 1032, dpr: 2, mobile: true },
   'play-phone': { width: 960, height: 540, dpr: 2, mobile: true },   // 1920x1080
