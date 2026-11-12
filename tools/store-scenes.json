@@ -1,0 +1,8 @@
+[
+ {"name":"1-welcome","steps":[{"wait":500}]},
+ {"name":"2-picker","steps":[{"js":"document.getElementById('btn-levels').click()","wait":1000}]},
+ {"name":"3-domino-play","steps":[{"js":"document.getElementById('picker-close').click()","wait":300},{"js":"document.getElementById('mode-sandbox').click()","wait":800},{"js":"loadExample('Domino Run')","wait":1200},{"js":"document.getElementById('btn-play').click()","wait":2200}]},
+ {"name":"4-bell","steps":[{"js":"document.getElementById('btn-play').click()","wait":500},{"js":"loadExample('Bell Ringer')","wait":1200},{"js":"document.getElementById('btn-play').click()","wait":900}]},
+ {"name":"5-fan","steps":[{"js":"document.getElementById('btn-play').click()","wait":500},{"js":"loadExample('Fan Elevator')","wait":1200},{"js":"document.getElementById('btn-play').click()","wait":1800}]},
+ {"name":"6-wrecking","steps":[{"js":"document.getElementById('btn-play').click()","wait":500},{"js":"loadExample('Wrecking Ball')","wait":1200},{"js":"document.getElementById('btn-play').click()","wait":1500}]}
+]

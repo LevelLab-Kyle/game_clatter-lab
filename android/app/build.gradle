@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+// Release signing reads the Play upload key from ../../../clatter-lab.env
+// (next to platform.env, outside the repo). Without it, release builds are unsigned.
+def uploadKey = new Properties()
+def uploadKeyFile = rootProject.file('../../../clatter-lab.env')
+if (uploadKeyFile.exists()) uploadKeyFile.withInputStream { uploadKey.load(it) }
+
 android {
     namespace = "com.levellab.clatterlab"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +22,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (uploadKey['CLATTER_UPLOAD_STORE_FILE']) {
+            release {
+                storeFile file(uploadKey['CLATTER_UPLOAD_STORE_FILE'])
+                storePassword uploadKey['CLATTER_UPLOAD_PASSWORD']
+                keyAlias uploadKey['CLATTER_UPLOAD_KEY_ALIAS']
+                keyPassword uploadKey['CLATTER_UPLOAD_PASSWORD']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (uploadKey['CLATTER_UPLOAD_STORE_FILE']) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

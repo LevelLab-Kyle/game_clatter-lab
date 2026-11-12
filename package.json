@@ -5,7 +5,11 @@
     "www": "node tools/build-www.cjs",
     "ios": "npm run www && npx cap sync ios && npx cap open ios",
     "android": "npm run www && npx cap sync android && npx cap open android",
-    "sync": "npm run www && npx cap sync"
+    "sync": "npm run www && npx cap sync",
+    "icons": "node tools/make-icons.cjs && capacitor-assets generate --ios --android --assetPath resources --iconBackgroundColor '#1a1a1a' --iconBackgroundColorDark '#1a1a1a' --splashBackgroundColor '#1a1a1a' --splashBackgroundColorDark '#1a1a1a'",
+    "release:www": "node tools/build-www.cjs --ref HEAD && npx cap sync",
+    "release:ios": "npm run release:www && cd ios/App && xcodebuild -project App.xcodeproj -scheme App -configuration Release -destination generic/platform=iOS -archivePath ../../build/ClatterLab.xcarchive -allowProvisioningUpdates archive && xcodebuild -exportArchive -archivePath ../../build/ClatterLab.xcarchive -exportOptionsPlist ../ExportOptions.plist -exportPath ../../build/ios -allowProvisioningUpdates",
+    "release:android": "npm run release:www && cd android && JAVA_HOME=${JAVA_HOME:-/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home} ./gradlew bundleRelease && cp app/build/outputs/bundle/release/app-release.aab ../build/ClatterLab.aab"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",
@@ -13,6 +17,7 @@
     "@capacitor/ios": "^8.6.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
     "@capacitor/cli": "^8.6.0"
   }
 }
