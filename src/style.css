@@ -232,8 +232,9 @@ select:focus { outline: none; border-color: var(--color-accent); }
   grid-template-rows: auto 1fr auto;
   grid-template-columns: minmax(0, 1fr); /* let the tray scroll instead of widening the page */
   /* Keep clear of the notch and home bar (the app, and Safari with viewport-fit=cover).
-     The top inset goes on #topbar so its colour runs up behind the notch. */
-  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+     The top inset goes on #topbar and the bottom one on #tray, so their colour
+     runs behind the notch and the home bar. */
+  padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
 
 #topbar {
@@ -661,8 +662,10 @@ body.loading #loader { display: flex; }
   min-width: 0;
   background: var(--color-surface);
   border-top: var(--border-width) var(--border-style) var(--color-border);
-  padding: var(--content-gap);
+  padding: var(--content-gap) var(--content-gap) calc(var(--content-gap) + env(safe-area-inset-bottom));
 }
+/* In the app the cards sit at the very bottom, under the home bar; Safari keeps them clear of its toolbar. */
+.in-app #tray { padding-bottom: var(--content-gap); }
 
 /* The tray slides a page of gadgets at a time with the arrows (or a wheel /
    swipe), so a drag never turns into a scroll by accident. Whatever is cut

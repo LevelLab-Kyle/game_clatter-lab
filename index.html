@@ -12,6 +12,11 @@
         apply();
         if (light && light.addEventListener) light.addEventListener('change', apply);
       })();
+      // In the iOS / Android app (Capacitor's bridge is already loaded here), the
+      // tray runs right down to the screen's bottom edge: see .in-app in style.css.
+      if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
+        document.documentElement.classList.add('in-app');
+      }
     </script>
     <title>Clatter Lab</title>
     <link rel="preload" href="assets/fonts/roboto-latin.woff2" as="font" type="font/woff2" crossorigin />
