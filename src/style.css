@@ -109,7 +109,9 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   margin: 0;
   height: 100%;
-  background: var(--color-background);
+  /* The bar colour: Safari tints its status bar and bottom toolbar with the
+     page background, so this makes them run on from #topbar and #tray. */
+  background: var(--color-surface);
 }
 
 body {
