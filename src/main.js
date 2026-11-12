@@ -171,19 +171,29 @@ function nearestFree(type, ax, ay, rot = 0, ignoreId = null, size = null, from =
   }
   // The nearest free quarter-cell spot to the un-snapped drop point, so it
   // slides toward whichever side it was closer to.
+  return closestFree(type, ax, ay, rot, ignoreId, size, flip, 8);
+}
+
+// The free quarter-cell spot closest to (ax, ay), as { x, y }. Drops look
+// up to 8 cells away and give up (null) past that. Rotate, Size and Flip
+// look as far as it takes, so they always work: a gadget that can't change
+// where it is moves the least it can. (Above everything is always free.)
+function closestFree(type, ax, ay, rot = 0, ignoreId = null, size = null, flip = false, maxCells = Infinity) {
   const x0 = snapSub(ax), y0 = Math.max(0, snapSub(ay));
-  const spots = [];
-  for (let r = 0; r <= 8 * SUB; r++) {
+  const off = Math.hypot(x0 - ax, y0 - ay); // ring r is at least r / SUB - off away
+  let best = null;
+  for (let r = 0; r <= maxCells * SUB && (!best || r / SUB - off <= best.d); r++) {
     for (let dx = -r; dx <= r; dx++) {
       for (let dy = -r; dy <= r; dy++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const x = x0 + dx / SUB, y = y0 + dy / SUB;
-        if (y >= 0) spots.push({ x, y, d: Math.hypot(x - ax, y - ay) });
+        if (y < 0) continue;
+        const d = Math.hypot(x - ax, y - ay);
+        if ((!best || d < best.d) && canPlace(type, x, y, rot, ignoreId, size, flip)) best = { x, y, d };
       }
     }
   }
-  spots.sort((a, b) => a.d - b.d);
-  return spots.find((s) => canPlace(type, s.x, s.y, rot, ignoreId, size, flip)) || null;
+  return best && { x: best.x, y: best.y };
 }
 
 const applyTransform = placeMesh;
@@ -450,8 +460,8 @@ function playerStop() {
   if (currentLevel() && !solvedHere && ++missedPlays >= STUCK_MISSES * worldNumber()) nudgeHint();
 }
 
-function onGoalHit(star) {
-  if (won) return;
+function onGoalHit(star, by) {
+  if (won || !goalCounts(by, !!currentLevel())) return;
   won = true;
   eachMesh(star.mesh, (m) => m.material.emissive?.set(0xffaa00));
   toast.textContent = '⭐ You did it!';
@@ -1001,8 +1011,7 @@ function posesOf(type) {
 }
 
 // The pose `item` turns to on its next step in `dir` (-1 clockwise, +1
-// counter-clockwise), wrapping around and skipping turns that don't fit.
-// Null if none do.
+// counter-clockwise), wrapping around. Null only if it has no other pose.
 function nextRotation(item, dir) {
   const poses = posesOf(item.type);
   const at = poses.findIndex((p) => p.rot === (item.rot || 0) && (p.flip === null || p.flip === !!item.flip));
@@ -1017,7 +1026,8 @@ function nextRotation(item, dir) {
 // Where `item` sits after turning to `rot`, or null if it doesn't fit.
 // It turns about its own center, so a long thin piece spins in place (or
 // about the point its gadget names in `turnsAbout`); if that spot is taken
-// it keeps its bottom-left corner instead.
+// it keeps its bottom-left corner instead. If that's taken too, it moves
+// the least it can from the first spot to make room.
 // Where point (px, py) of a gadget's unturned box ends up in its box after
 // `rot` quarter turns counter-clockwise.
 function turnedPoint(type, size, rot, [px, py]) {
@@ -1043,14 +1053,15 @@ function turnedAnchor(item, rot) {
     });
   }
   spots.push({ x: item.x, y: item.y });
-  return spots.find((at) => canPlace(item.type, at.x, at.y, rot, item.id, item.size, !!item.flip)) || null;
+  return spots.find((at) => canPlace(item.type, at.x, at.y, rot, item.id, item.size, !!item.flip))
+    || closestFree(item.type, spots[0].x, spots[0].y, rot, item.id, item.size, !!item.flip);
 }
 
 // Where a resizable `item` ends up on its next Size step in `dir` (+1
 // forward, -1 back) through its gadget's list of sizes, wrapping around, as
 // { size, x, y }; null if no other size fits. It keeps its bottom-left
 // corner, or slides left and/or down to make room when growing into
-// something. Sizes that don't fit are skipped.
+// something. Failing that, it moves the least it can to make room.
 function nextSize(item, dir) {
   const r = GADGETS[item.type].resizable;
   if (!r) return null;
@@ -1095,6 +1106,8 @@ function nextSize(item, dir) {
       const x = item.x + ox, y = item.y + oy;
       if (y >= 0 && canPlace(item.type, x, y, item.rot, item.id, size, !!item.flip)) return { size, x, y };
     }
+    const near = closestFree(item.type, item.x + ground[0], item.y + ground[1], item.rot, item.id, size, !!item.flip);
+    if (near) return { size, ...near };
   }
   return null;
 }
@@ -1114,7 +1127,8 @@ function nudgeSelected(dx, dy) {
 
 // The Ball's next size (marble, ball, bowling ball), as { type, x, y }, or
 // null if none fit. It stays centered across and keeps its bottom where it
-// was (the marble's bottom sits a quarter up in its cell).
+// was (the marble's bottom sits a quarter up in its cell), or moves the
+// least it can to make room.
 const ballBottom = (type) => Math.min(...footprintCells(type, 0, 0).map(([, j]) => j)) / SUB;
 function nextBall(item, dir) {
   const at = BALL_SIZES.indexOf(item.type);
@@ -1128,6 +1142,8 @@ function nextBall(item, dir) {
       const x = item.x + ox, y = item.y + oy;
       if (y >= 0 && canPlace(type, x, y, 0, item.id)) return { type, x, y };
     }
+    const near = closestFree(type, item.x + dx, item.y + dy, 0, item.id);
+    if (near) return { type, ...near };
   }
   return null;
 }
@@ -1219,11 +1235,15 @@ function flipSelected() {
   }
   if (!selected || playing || !GADGETS[selected.type].flippable) return;
   const rot = mirroredRot(selected.rot);
-  // Mirrored, its outline changes (a ramp slopes the other way): it has to fit.
-  if (!canPlace(selected.type, selected.x, selected.y, rot, selected.id, selected.size, !selected.flip)) return;
+  // Mirrored, its outline changes (a ramp slopes the other way): if it
+  // doesn't fit where it is, it moves the least it can to make room.
+  const at = canPlace(selected.type, selected.x, selected.y, rot, selected.id, selected.size, !selected.flip)
+    ? { x: selected.x, y: selected.y }
+    : closestFree(selected.type, selected.x, selected.y, rot, selected.id, selected.size, !selected.flip);
+  if (!at) return;
   recordEdit();
   const from = selected.mesh.position.clone();
-  moveItem(selected, selected.x, selected.y, rot, !selected.flip); // rebuilds the mesh
+  moveItem(selected, at.x, at.y, rot, !selected.flip); // rebuilds the mesh
   // Squash through the middle across the screen: along the piece's own x
   // when it's level, its own y when it's turned a quarter.
   const fromS = rot % 2 ? new THREE.Vector3(1, -1, 1) : new THREE.Vector3(-1, 1, 1);
@@ -1333,8 +1353,10 @@ function updateItemTools() {
   const y = THREE.MathUtils.clamp(minY - 10, 56, h);
   itemTools.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
   // Every action shows on every gadget; ones that don't apply are greyed out.
-  toolRotate.disabled = nextRotation(selected, -1) === null;
-  toolSize.disabled = (BALL_SIZES.includes(selected.type) ? nextBall(selected, 1) : nextSize(selected, 1)) === null;
+  // Rotate, Size and Flip move a boxed-in gadget out of the way, so they're
+  // greyed out only for gadgets that can't turn, change size or flip at all.
+  toolRotate.disabled = posesOf(selected.type).length < 2;
+  toolSize.disabled = !BALL_SIZES.includes(selected.type) && !(GADGETS[selected.type].resizable?.sizes.length > 1);
   toolFlip.disabled = !GADGETS[selected.type].flippable;
   itemTools.classList.toggle('below', y < 200); // no room above near the top
 }
@@ -1740,6 +1762,15 @@ function newGadgetOf(n) {
   return GADGET_ORDER.find((t) => LEVELS[n].parts[t] && !seen.has(t)) || null;
 }
 
+// Whether level n is the first to use a part, or the first whose goal
+// shows a button ({size}, {rotate}, {flip}).
+function teachesSomething(n) {
+  if (newGadgetOf(n)) return true;
+  const buttons = (k) => LEVELS[k].goal.match(/\{(size|rotate|flip)\}/g) || [];
+  const before = new Set(LEVELS.slice(0, n).flatMap((_, k) => buttons(k)));
+  return buttons(n).some((b) => !before.has(b));
+}
+
 const examplesSelect = document.getElementById('examples');
 for (const name of Object.keys(EXAMPLES)) {
   const opt = document.createElement('option');
@@ -1819,8 +1850,10 @@ function showMode() {
   levelTime = 0;
   missedPlays = 0;
   solvedHere = nudged = false;
-  // The first level of each world opens with the welcome. Elsewhere, ? opens the hint.
+  // The first level of each world opens with the welcome. A level that
+  // brings in a new part or button opens with its goal. Elsewhere, ? opens it.
   if (level?.world) showHint(true);
+  else if (level && teachesSomething(levelIndex)) showHint();
   else hideHint();
 }
 

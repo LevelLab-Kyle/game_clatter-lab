@@ -24,17 +24,18 @@ for (const f of files) {
   const full = path.resolve(root, f);
   if (fs.existsSync(full)) vm.runInContext(fs.readFileSync(full, 'utf8'), ctx, { filename: f });
 }
-const { GADGETS, buildWorld, placeMesh, outlineAt, outlinesOverlap, outlineBottom, OUTLINE_EPS, stepFrame, partType, SUB } = vm.runInContext('({ GADGETS, buildWorld, placeMesh, outlineAt, outlinesOverlap, outlineBottom, OUTLINE_EPS, stepFrame, partType, SUB })', ctx);
+const { GADGETS, buildWorld, placeMesh, outlineAt, outlinesOverlap, outlineBottom, OUTLINE_EPS, stepFrame, partType, SUB, goalCounts } = vm.runInContext('({ GADGETS, buildWorld, placeMesh, outlineAt, outlinesOverlap, outlineBottom, OUTLINE_EPS, stepFrame, partType, SUB, goalCounts })', ctx);
 const EXAMPLES = vm.runInContext('typeof EXAMPLES === "undefined" ? {} : EXAMPLES', ctx);
 const LEVELS = vm.runInContext('typeof LEVELS === "undefined" ? [] : LEVELS', ctx);
 
 const SECONDS = 20;
 
-// Entries are [type, x, y, rot, flip, size].
-function toItems(list) {
-  return list.map(([type, x, y, rot = 0, flip = false, size = null]) => {
+// Entries are [type, x, y, rot, flip, size]. The first `nLocked` are the
+// level's own pieces.
+function toItems(list, nLocked) {
+  return list.map(([type, x, y, rot = 0, flip = false, size = null], k) => {
     if (!GADGETS[type]) throw new Error('unknown gadget ' + type);
-    const item = { type, x, y, rot, flip, size };
+    const item = { type, x, y, rot, flip, size, locked: k < nLocked };
     item.mesh = GADGETS[type].makeMesh(item);
     placeMesh(item);
     return item;
@@ -81,12 +82,13 @@ function dropSpot(list, type, ax, ay, rot, size, flip = false) {
   return spots.find((p) => fits(p.x, p.y)) || null;
 }
 
-// Seconds until the star is hit, or null. With `trace`, prints every moving
-// body's position each quarter second.
-function play(list, trace = false) {
+// Seconds until the star is hit, or null. In a level (`nLocked` given),
+// only what the game counts as a win counts (goalCounts). With `trace`,
+// prints every moving body's position each quarter second.
+function play(list, trace = false, nLocked = null) {
   let won = false;
-  const items = toItems(list);
-  const world = buildWorld(items, { onGoal: () => { won = true; } });
+  const items = toItems(list, nLocked ?? 0);
+  const world = buildWorld(items, { onGoal: (star, by) => { if (goalCounts(by, nLocked !== null)) won = true; } });
   const movers = [];
   for (const item of items) for (const p of item.parts) if (p.body.mass > 0) movers.push([item.type, p.body]);
   for (let i = 0; i < SECONDS * 60; i++) {
@@ -129,15 +131,15 @@ LEVELS.forEach((lv, n) => {
   const used = {};
   for (const [t] of lv.solution) { const type = partType(t); used[type] = (used[type] || 0) + 1; }
   for (const [type, k] of Object.entries(used)) if (k > (lv.parts[type] || 0)) problems.push(`solution uses ${k} ${type}, only ${lv.parts[type] || 0} on offer`);
-  const t = bad ? null : play(all, trace && !traceFree);
+  const t = bad ? null : play(all, trace && !traceFree, lv.items.length);
   if (!bad && t === null) problems.push('solution misses the star');
-  const free = play(lv.items, traceFree);
+  const free = play(lv.items, traceFree, lv.items.length);
   if (free !== null) problems.push(`wins with no parts placed (${free}s)`);
   // Every part of the solution is needed: leave any one out and it misses
   // (unless the level says it has spares).
   if (t !== null && !lv.spares) {
     lv.solution.forEach((part, k) => {
-      if (play([...lv.items, ...lv.solution.filter((_, j) => j !== k)]) !== null) problems.push(`wins without the ${part[0]} at ${part[1]},${part[2]}`);
+      if (play([...lv.items, ...lv.solution.filter((_, j) => j !== k)], false, lv.items.length) !== null) problems.push(`wins without the ${part[0]} at ${part[1]},${part[2]}`);
     });
   }
   // A part dropped from the tray onto its answer spot must land exactly

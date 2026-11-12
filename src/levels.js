@@ -231,11 +231,12 @@ const LEVELS = [
   },
   {
     name: 'Tip It Over',
-    goal: 'The marble can’t get up there. Stand the plank up by the edge. The marble will knock it over.',
+    goal: 'Stand the plank up by the edge. The marble will knock it over. Then the plank knocks the other marble down.',
     parts: { plank: 1 },
     items: [
       ['block', 0, 0, 0, false, { w: 1, h: 4 }], ['ramp', 1, 2, 0, false, { w: 2, h: 2 }], ['block', 1, 0, 0, false, { w: 5, h: 2 }], ['marble', 1, 4],
-      ['block', 8, 0, 0, false, { w: 4, h: 3 }], ['star', 8, 3],
+      ['block', 8, 0, 0, false, { w: 0.5, h: 3.5 }], ['marble', 8, 3.5], ['ramp', 8.5, 0, 0, false, { w: 3, h: 3 }],
+      ['star', 12, 0], ['block', 13, 0, 0, false, { w: 0.5, h: 1.5 }],
     ],
     solution: [['plank', 5.5, 2, 1]],
   },
@@ -486,14 +487,14 @@ const LEVELS = [
     parts: { pendulum: 1, hammer: 1 },
     items: [
       ['block', 0, 0, 0, false, { w: 2, h: 2 }], ['ramp', 0, 2, 0, false, { w: 2, h: 1 }], ['bowling', 0, 3],
-      ['block', 5, 0, 0, false, { w: 0.5, h: 1 }],
+      ['block', 5, 0, 0, false, { w: 0.5, h: 1.5 }], ['block', 8, 0, 0, false, { w: 0.25, h: 0.5 }],
       ['domino', 9, 0], ['domino', 10, 0], ['domino', 11, 0], ['star', 11.75, 0],
     ],
     solution: [['pendulum', 4, 1.5], ['hammer', 6, 0]],
   },
   {
     name: 'Pulley Lift',
-    goal: 'Put the pulley under the two balls. The big ball pulls its side down. The marble goes up.',
+    goal: 'Put the pulley under the two balls. You can drag its platforms up and down. The big ball pulls its side down. The marble goes up.',
     parts: { pulley: 1 },
     items: [['ball', 2, 4], ['marble', 4, 1.5], ['star', 4, 3.5]],
     solution: [['pulley', 2, 0]],
@@ -520,15 +521,18 @@ const LEVELS = [
   },
   {
     name: 'Lift and Blow',
-    goal: 'Turn the ball down onto the pulley. The marble goes up. Then blow it to the star.',
-    parts: { pipe: 1, pulley: 1, fan: 1 },
+    goal: 'Put the fan in the ball’s way. The ball drops onto the pulley. The marble goes up. Then the fan blows it to the star.',
+    parts: { pulley: 1, fan: 1 },
     items: [
       ['block', 0, 0, 0, false, { w: 2, h: 5 }], ['block', 2, 0, 0, false, { w: 2, h: 5 }],
       ['ramp', 0, 5, 0, false, { w: 2, h: 1 }], ['ball', 0, 6],
       ['marble', 7, 1.5],
       ['block', 9.5, 0, 0, false, { w: 3, h: 3.5 }], ['star', 11, 3.5],
+      // A low roof over the star: the marble fits under it, the ball doesn't.
+      ['block', 12.25, 3.5, 0, false, { w: 0.25, h: 1.25 }], ['block', 9.5, 4.75, 0, false, { w: 3, h: 0.5 }],
+      ['block', 9.5, 3.5, 0, false, { w: 0.25, h: 0.5 }],
     ],
-    solution: [['pipe', 4, 4.25], ['pulley', 5, 0], ['fan', 6, 4]],
+    solution: [['pulley', 5, 0], ['fan', 5.5, 4]],
   },
   {
     name: 'Flick and Boing',
@@ -904,7 +908,7 @@ const LEVELS = [
   {
     name: 'Round Trip',
     goal: "Shoot the marble over the gap. Bring it back slowly so it falls in. Then turn it toward the ball.",
-    parts: { launcher: 1, conveyor: 1, pipe: 1, domino: 1 },
+    parts: { launcher: 1, conveyor: 1, pipe: 1 },
     items: [
       ['block', 0, 0, 0, false, { w: 6, h: 3 }],
       ['marble', 1, 3],
@@ -914,13 +918,12 @@ const LEVELS = [
       ['block', 8, 0, 0, false, { w: 5, h: 0.25 }],
       ['ball', 8.5, 0.25],
       ['domino', 9.75, 0.25],
-      ['star', 12, 0.25],
+      ['star', 11, 0.25],
     ],
     solution: [
       ['launcher', 0.5, 3, 3],
       ['conveyor', 13, 2.25, 0, true],
       ['pipe', 6, 0, 2],
-      ['domino', 11, 0.25],
     ],
   },
   {

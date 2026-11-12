@@ -1196,7 +1196,7 @@ function footprintCells(type, x, y, rot = 0, size = null) {
 // Physics world for a run. Shared by the game (src/main.js) and the headless
 // level checker (tools/check-levels.cjs), so both play out exactly the same.
 // Each item needs its mesh in place (see placeMesh). Sets item.parts.
-// hooks: onImpact(body, ev), onBell(item, ev), onGoal(item).
+// hooks: onImpact(body, ev), onBell(item, ev), onGoal(star, item that hit it).
 // ---------------------------------------------------------------------------
 
 // Physics runs at 120 steps a second. At 60, a small fast marble could sink
@@ -1209,6 +1209,12 @@ function stepFrame(world) {
   world.step(PHYSICS_STEP);
   world.step(PHYSICS_STEP);
 }
+
+// Whether `by` touching the star wins. In a level, the player's own parts
+// count only if they're balls: a plank or block dropped onto the star
+// doesn't win. The level's own pieces always count.
+const ROUND = new Set(['marble', 'ball', 'bowling']);
+function goalCounts(by, inLevel) { return !inLevel || by.locked || ROUND.has(by.type); }
 
 function buildWorld(items, hooks = {}) {
   // No sleeping: a slowly leaning domino wouldn't wake a sleeping neighbour.
@@ -1242,6 +1248,7 @@ function buildWorld(items, hooks = {}) {
   });
 
   const wp = new THREE.Vector3(), wq = new THREE.Quaternion();
+  const owner = new Map(); // body -> its item
   for (const item of items) {
     const def = GADGETS[item.type];
     item.mesh.updateMatrixWorld(true);
@@ -1255,12 +1262,13 @@ function buildWorld(items, hooks = {}) {
       part.body.position.copy(wp);
       part.body.quaternion.copy(wq);
       world.addBody(part.body);
+      owner.set(part.body, item);
       if (hooks.onImpact && part.body.mass > 0) part.body.addEventListener('collide', (ev) => hooks.onImpact(part.body, ev));
       if (hooks.onBell && def.ring) part.body.addEventListener('collide', (ev) => hooks.onBell(item, ev));
     }
     built.constraints.forEach((c) => world.addConstraint(c));
     item.parts = built.parts;
-    if (def.goal && hooks.onGoal) built.parts[0].body.addEventListener('collide', () => hooks.onGoal(item));
+    if (def.goal && hooks.onGoal) built.parts[0].body.addEventListener('collide', (ev) => { if (owner.has(ev.body)) hooks.onGoal(item, owner.get(ev.body)); });
   }
   return world;
 }
